@@ -546,7 +546,7 @@ export default function App() {
                     value={formData.type}
                     onChange={e => setFormData({...formData, type: e.target.value})}
                   >
-                    <option value="Assignment">מטלה</option>
+                    <option value="Assignment">גיליון</option>
                     <option value="Webwork">וובוורק</option>
                     <option value="Exam">מבחן</option>
                   </select>
