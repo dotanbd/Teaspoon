@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Bell, RefreshCw, AlertCircle, Edit2, Trash2, Tag, BookType, Copy, Filter } from 'lucide-react';
 
-// Make sure to change this to your VM's public IP address when deploying
-const API_BASE_URL = 'http://129.159.139.53:8000/api'; // REPLACE WITH YOUR IP
+
+const API_BASE_URL = 'http://129.159.139.53:8000/api';
 
 // --- TypeScript Interfaces ---
 interface Assignment {
@@ -28,16 +28,24 @@ interface FormData {
   isOptional: boolean;
 }
 
-// --- Dynamic Color Mapping ---
+// --- Hebrew Translations Map for Types ---
+const typeTranslations: Record<string, string> = {
+  'All': 'הכל',
+  'Assignment': 'גיליון',
+  'Webwork': 'וובוורק',
+  'Exam': 'מבחן'
+};
+
+// --- Dynamic Color Mapping (Updated with Logical CSS Properties for RTL) ---
 const courseThemes = [
-  { leftBorder: 'border-l-blue-500', hover: 'hover:border-blue-300', badgeBg: 'bg-blue-100', badgeText: 'text-blue-800', badgeBorder: 'border-blue-200', dot: 'bg-blue-500' },
-  { leftBorder: 'border-l-emerald-500', hover: 'hover:border-emerald-300', badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-800', badgeBorder: 'border-emerald-200', dot: 'bg-emerald-500' },
-  { leftBorder: 'border-l-purple-500', hover: 'hover:border-purple-300', badgeBg: 'bg-purple-100', badgeText: 'text-purple-800', badgeBorder: 'border-purple-200', dot: 'bg-purple-500' },
-  { leftBorder: 'border-l-rose-500', hover: 'hover:border-rose-300', badgeBg: 'bg-rose-100', badgeText: 'text-rose-800', badgeBorder: 'border-rose-200', dot: 'bg-rose-500' },
-  { leftBorder: 'border-l-amber-500', hover: 'hover:border-amber-300', badgeBg: 'bg-amber-100', badgeText: 'text-amber-800', badgeBorder: 'border-amber-200', dot: 'bg-amber-500' },
-  { leftBorder: 'border-l-cyan-500', hover: 'hover:border-cyan-300', badgeBg: 'bg-cyan-100', badgeText: 'text-cyan-800', badgeBorder: 'border-cyan-200', dot: 'bg-cyan-500' },
-  { leftBorder: 'border-l-indigo-500', hover: 'hover:border-indigo-300', badgeBg: 'bg-indigo-100', badgeText: 'text-indigo-800', badgeBorder: 'border-indigo-200', dot: 'bg-indigo-500' },
-  { leftBorder: 'border-l-fuchsia-500', hover: 'hover:border-fuchsia-300', badgeBg: 'bg-fuchsia-100', badgeText: 'text-fuchsia-800', badgeBorder: 'border-fuchsia-200', dot: 'bg-fuchsia-500' }
+  { startBorder: 'border-s-blue-500', hover: 'hover:border-blue-300', badgeBg: 'bg-blue-100', badgeText: 'text-blue-800', badgeBorder: 'border-blue-200', dot: 'bg-blue-500' },
+  { startBorder: 'border-s-emerald-500', hover: 'hover:border-emerald-300', badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-800', badgeBorder: 'border-emerald-200', dot: 'bg-emerald-500' },
+  { startBorder: 'border-s-purple-500', hover: 'hover:border-purple-300', badgeBg: 'bg-purple-100', badgeText: 'text-purple-800', badgeBorder: 'border-purple-200', dot: 'bg-purple-500' },
+  { startBorder: 'border-s-rose-500', hover: 'hover:border-rose-300', badgeBg: 'bg-rose-100', badgeText: 'text-rose-800', badgeBorder: 'border-rose-200', dot: 'bg-rose-500' },
+  { startBorder: 'border-s-amber-500', hover: 'hover:border-amber-300', badgeBg: 'bg-amber-100', badgeText: 'text-amber-800', badgeBorder: 'border-amber-200', dot: 'bg-amber-500' },
+  { startBorder: 'border-s-cyan-500', hover: 'hover:border-cyan-300', badgeBg: 'bg-cyan-100', badgeText: 'text-cyan-800', badgeBorder: 'border-cyan-200', dot: 'bg-cyan-500' },
+  { startBorder: 'border-s-indigo-500', hover: 'hover:border-indigo-300', badgeBg: 'bg-indigo-100', badgeText: 'text-indigo-800', badgeBorder: 'border-indigo-200', dot: 'bg-indigo-500' },
+  { startBorder: 'border-s-fuchsia-500', hover: 'hover:border-fuchsia-300', badgeBg: 'bg-fuchsia-100', badgeText: 'text-fuchsia-800', badgeBorder: 'border-fuchsia-200', dot: 'bg-fuchsia-500' }
 ];
 
 const getCourseTheme = (courseCode: string) => {
@@ -111,7 +119,7 @@ export default function App() {
       setAssignments(sorted);
     } catch (error) {
       console.error("Error fetching data from API:", error);
-      setFetchError(`Network Error: Could not connect to the backend at ${API_BASE_URL}. Ensure your Python server is running, CORS is configured, and the URL is correct.`);
+      setFetchError(`שגיאת רשת: לא ניתן להתחבר לשרת בכתובת ${API_BASE_URL}. ודא שהשרת פועל, שהגדרות ה-CORS תקינות ושכתובת ה-IP נכונה.`);
     } finally {
       setLoading(false);
     }
@@ -167,7 +175,7 @@ export default function App() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this assignment?")) return;
+    if (!window.confirm("האם ברצונך למחוק מטלה זו?")) return;
     
     try {
       const res = await fetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE' });
@@ -175,7 +183,7 @@ export default function App() {
       setAssignments(prev => prev.filter(a => a.id !== id));
     } catch (error) {
       console.error("Failed to delete assignment:", error);
-      alert("Error: Could not delete the assignment. Please check your connection.");
+      alert("שגיאה: לא ניתן למחוק את המטלה. אנא בדוק את חיבור האינטרנט שלך.");
     }
   };
 
@@ -227,13 +235,13 @@ export default function App() {
       setIsModalOpen(false);
     } catch (error) {
       console.error("Failed to save assignment:", error);
-      alert("Error: Could not save the assignment. Please check your connection.");
+      alert("שגיאה: לא ניתן לשמור את המטלה. אנא בדוק את חיבור האינטרנט שלך.");
     }
   };
 
   const handleSync = () => {
     if (myCourses.length === 0) {
-      setSyncMessage('Select at least one course to sync.');
+      setSyncMessage('יש לבחור לפחות קורס אחד לסנכרון.');
       return;
     }
     
@@ -251,9 +259,9 @@ export default function App() {
       document.execCommand("copy");
       textArea.remove();
 
-      setSyncMessage('✅ Link copied! Add it "From URL" in your calendar app.');
+      setSyncMessage('✅ הקישור הועתק! הוסף אותו תחת "לוח שנה מכתובת" (From URL) ביומן שלך.');
     } catch (error) {
-      setSyncMessage('❌ Failed to copy link.');
+      setSyncMessage('❌ העתקת הקישור נכשלה.');
       console.error("Clipboard copy failed:", error);
     } finally {
       setSyncing(false);
@@ -273,33 +281,33 @@ export default function App() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    let dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    if (date.toDateString() === today.toDateString()) dateStr = 'Today';
-    else if (date.toDateString() === tomorrow.toDateString()) dateStr = 'Tomorrow';
+    // Using he-IL for Hebrew date formatting
+    let dateStr = date.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
+    if (date.toDateString() === today.toDateString()) dateStr = 'היום';
+    else if (date.toDateString() === tomorrow.toDateString()) dateStr = 'מחר';
 
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    return `${dateStr} at ${timeStr}`;
+    const timeStr = date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${dateStr} ב-${timeStr}`;
   };
 
-  // Card Urgency overrides Course Theme ONLY if overdue/urgent
   const getCardClasses = (deadline: string, theme: any) => {
     const hoursLeft = (new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60);
-    if (hoursLeft < 0) return 'border-l-red-500 border-y-red-200 border-r-red-200 bg-red-50'; // Overdue
-    if (hoursLeft < 48) return 'border-l-orange-500 border-y-orange-200 border-r-orange-200 bg-orange-50'; // Urgent
-    return `${theme.leftBorder} border-y-slate-200 border-r-slate-200 bg-white ${theme.hover}`; // Normal
+    if (hoursLeft < 0) return 'border-s-red-500 border-y-red-200 border-e-red-200 bg-red-50'; // Overdue
+    if (hoursLeft < 48) return 'border-s-orange-500 border-y-orange-200 border-e-orange-200 bg-orange-50'; // Urgent
+    return `${theme.startBorder} border-y-slate-200 border-e-slate-200 bg-white ${theme.hover}`; // Normal
   };
 
-  // Keep specific types standardized regardless of course
   const getTypeBadgeStyles = (type: string) => {
     switch(type) {
       case 'Exam': return 'bg-slate-800 text-white border-slate-900';
-      case 'Webwork': return 'bg-slate-100 text-slate-700 border-slate-300';
+      case 'Webwork': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       default: return 'bg-white text-slate-600 border-slate-200 shadow-sm';
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12">
+    // Added dir="rtl" to the root container
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12" dir="rtl">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between">
@@ -308,8 +316,8 @@ export default function App() {
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Co-op Board</h1>
-              <p className="text-sm text-slate-500">Shared Assignment Deadlines</p>
+              <h1 className="text-xl font-bold text-slate-900">לוח מטלות שיתופי</h1>
+              <p className="text-sm text-slate-500">מעקב אחר תאריכי הגשה אקדמיים</p>
             </div>
           </div>
           
@@ -318,7 +326,7 @@ export default function App() {
               onClick={openAddModal}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
             >
-              <Plus className="w-4 h-4" /> Add Task
+              <Plus className="w-4 h-4" /> הוספת מטלה
             </button>
           </div>
         </div>
@@ -330,9 +338,9 @@ export default function App() {
         <aside className="w-full md:w-72 flex flex-col gap-6 shrink-0">
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <h2 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-slate-700" /> My Courses
+              <BookOpen className="w-5 h-5 text-slate-700" /> הקורסים שלי
             </h2>
-            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pr-2">
+            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pe-2">
               {availableCourses.map(code => {
                 const theme = getCourseTheme(code);
                 return (
@@ -348,10 +356,10 @@ export default function App() {
                         {/* Dynamic Course Color Dot */}
                         <div className={`w-2 h-2 rounded-full ${theme.dot}`}></div>
                         <span className="text-sm font-bold text-slate-700 line-clamp-1">
-                          {coursesMap[code] || 'Unknown Course'}
+                          {coursesMap[code] || 'קורס לא ידוע'}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-500 group-hover:text-slate-600 ml-4">
+                      <span className="text-xs text-slate-500 group-hover:text-slate-600 me-4 text-start" dir="ltr">
                         {code}
                       </span>
                     </div>
@@ -359,7 +367,7 @@ export default function App() {
                 );
               })}
               {availableCourses.length === 0 && !fetchError && (
-                <p className="text-sm text-slate-500 italic">No courses added yet.</p>
+                <p className="text-sm text-slate-500 italic">טרם נוספו קורסים.</p>
               )}
             </div>
 
@@ -367,16 +375,16 @@ export default function App() {
 
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <Bell className="w-4 h-4 text-orange-500" /> Calendar Sync
+                <Bell className="w-4 h-4 text-orange-500" /> סנכרון ליומן
               </h3>
-              <p className="text-xs text-slate-500">Subscribe to a live feed of your selected courses in your Calendar app.</p>
+              <p className="text-xs text-slate-500">הרשמה לעדכונים אוטומטיים של הקורסים הנבחרים באפליקציית היומן שלך.</p>
               <button 
                 onClick={handleSync}
                 disabled={syncing || myCourses.length === 0 || !!fetchError}
                 className="w-full flex justify-center items-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {syncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-                {syncing ? 'Generating...' : 'Copy Calendar Feed URL'}
+                {syncing ? 'מייצר קישור...' : 'העתקת קישור ליומן'}
               </button>
               {syncMessage && (
                 <p className={`text-xs text-center mt-2 font-medium ${syncMessage.includes('✅') ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -392,9 +400,9 @@ export default function App() {
           
           {/* Type Filters */}
           <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-            <div className="flex items-center gap-2 mr-2 text-slate-500">
+            <div className="flex items-center gap-2 ms-2 text-slate-500">
               <Filter className="w-4 h-4" />
-              <span className="text-sm font-semibold">Filter:</span>
+              <span className="text-sm font-semibold">סינון:</span>
             </div>
             {assignmentTypes.map(type => (
               <button
@@ -406,7 +414,7 @@ export default function App() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {type}
+                {typeTranslations[type]}
               </button>
             ))}
           </div>
@@ -418,17 +426,17 @@ export default function App() {
           ) : fetchError ? (
             <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
               <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-red-900 mb-1">Connection Error</h3>
+              <h3 className="text-lg font-medium text-red-900 mb-1">שגיאת תקשורת</h3>
               <p className="text-red-700 text-sm max-w-md mx-auto">{fetchError}</p>
             </div>
           ) : filteredAssignments.length === 0 ? (
             <div className="bg-white border border-slate-200 border-dashed rounded-xl p-12 text-center">
               <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-1">No tasks found!</h3>
+              <h3 className="text-lg font-medium text-slate-900 mb-1">לא נמצאו מטלות!</h3>
               <p className="text-slate-500 text-sm">
                 {activeTypeFilter !== 'All' 
-                  ? `No upcoming ${activeTypeFilter.toLowerCase()}s for the selected courses.`
-                  : "You're all caught up for the selected courses, or no tasks have been added."}
+                  ? `אין מטלות מסוג "${typeTranslations[activeTypeFilter]}" לקורסים הנבחרים.`
+                  : "הכל מעודכן עבור הקורסים הנבחרים, או שטרם הוספו מטלות ללוח."}
               </p>
             </div>
           ) : (
@@ -438,47 +446,47 @@ export default function App() {
                 return (
                   <div 
                     key={assignment.id} 
-                    className={`relative p-5 rounded-xl border-l-4 shadow-sm transition-all group ${getCardClasses(assignment.deadline, theme)}`}
+                    className={`relative p-5 rounded-xl border-s-4 shadow-sm transition-all group ${getCardClasses(assignment.deadline, theme)}`}
                   >
                     {/* Actions (Edit/Delete) overlay */}
-                    <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-4 end-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => openEditModal(assignment)}
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        title="Edit"
+                        title="עריכה"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDelete(assignment.id)}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                        title="Delete"
+                        title="מחיקה"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mb-3 pr-16">
+                    <div className="flex flex-wrap items-center gap-2 mb-3 pe-16">
                       {/* Dynamic Course Badge */}
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`} dir="ltr">
                         <BookType className="w-3 h-3" />
                         {assignment.courseCode}
                       </span>
                       
                       <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border ${getTypeBadgeStyles(assignment.type)}`}>
                         <Tag className="w-3 h-3" />
-                        {assignment.type}
+                        {typeTranslations[assignment.type]}
                       </span>
                       
                       {assignment.isOptional && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 text-slate-500 text-xs font-semibold rounded-md border border-slate-200">
-                          Optional
+                          רשות
                         </span>
                       )}
                       
                       {(new Date(assignment.deadline).getTime() - new Date().getTime()) < 86400000 * 2 && (new Date(assignment.deadline).getTime() > new Date().getTime()) && (
                          <span className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-md">
-                           <AlertCircle className="w-3 h-3" /> Due Soon
+                           <AlertCircle className="w-3 h-3" /> מועד קרוב
                          </span>
                       )}
                     </div>
@@ -504,7 +512,7 @@ export default function App() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-800">
-                {isEditing ? 'Edit Assignment' : 'Add New Assignment'}
+                {isEditing ? 'עריכת מטלה' : 'הוספת מטלה חדשה'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
             </div>
@@ -513,27 +521,28 @@ export default function App() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Course Code</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">מספר קורס</label>
                   <input 
                     required
                     type="text" 
-                    placeholder="Max 7 digits"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
+                    placeholder="עד 7 ספרות"
+                    dir="ltr"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800 text-end"
                     value={formData.courseCode}
                     onChange={handleCourseCodeChange}
                   />
                 </div>
                 
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">סוג המטלה</label>
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800 bg-white"
                     value={formData.type}
                     onChange={e => setFormData({...formData, type: e.target.value})}
                   >
-                    <option value="Assignment">Assignment</option>
-                    <option value="Webwork">Webwork</option>
-                    <option value="Exam">Exam</option>
+                    <option value="Assignment">מטלה</option>
+                    <option value="Webwork">וובוורק</option>
+                    <option value="Exam">מבחן</option>
                   </select>
                 </div>
               </div>
@@ -541,12 +550,12 @@ export default function App() {
               {formData.courseCode.length > 0 && (
                 <div className="animate-in slide-in-from-top-2 duration-300">
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Course Name {coursesMap[formData.courseCode] ? '(Auto-filled)' : '(New Course)'}
+                    שם הקורס {coursesMap[formData.courseCode] ? '(מילוי אוטומטי)' : '(קורס חדש)'}
                   </label>
                   <input 
                     required
                     type="text" 
-                    placeholder="e.g. Intro to Computer Science"
+                    placeholder="לדוגמה: פיזיקה 1פ"
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${
                       coursesMap[formData.courseCode] 
                         ? 'bg-slate-50 border-slate-200 text-slate-500' 
@@ -560,11 +569,11 @@ export default function App() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">כותרת</label>
                 <input 
                   required
                   type="text" 
-                  placeholder="e.g. Midterm Essay"
+                  placeholder="לדוגמה: עבודת אמצע"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
@@ -573,7 +582,7 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">תאריך הגשה</label>
                   <input 
                     required
                     type="date" 
@@ -583,7 +592,7 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Time (Optional)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">שעה (רשות)</label>
                   <input 
                     type="time" 
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
@@ -602,7 +611,7 @@ export default function App() {
                   onChange={e => setFormData({...formData, isOptional: e.target.checked})}
                 />
                 <label htmlFor="isOptional" className="text-sm font-medium text-slate-700 cursor-pointer">
-                  This deadline is optional
+                  מטלת רשות (לא חובה)
                 </label>
               </div>
 
@@ -612,13 +621,13 @@ export default function App() {
                   onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors"
                 >
-                  Cancel
+                  ביטול
                 </button>
                 <button 
                   type="submit" 
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
                 >
-                  {isEditing ? 'Save Changes' : 'Post to Board'}
+                  {isEditing ? 'שמירת שינויים' : 'הוספה ללוח'}
                 </button>
               </div>
             </form>
