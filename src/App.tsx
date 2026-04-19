@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Bell, RefreshCw, AlertCircle, Edit2, Trash2, Tag, BookType, Copy, Filter } from 'lucide-react';
 
 // Make sure to change this to your VM's public IP address when deploying
-const API_BASE_URL = 'http://139.159.129.53:8000/api'; // REPLACE WITH YOUR IP
+const API_BASE_URL = 'http://129.159.139.53:8000/api'; // REPLACE WITH YOUR IP
 
 // --- TypeScript Interfaces ---
 interface Assignment {
