@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Bell, RefreshCw, AlertCircle, Edit2, Trash2, Tag, BookType, Copy, Filter } from 'lucide-react';
 
 
-const API_BASE_URL = 'http://129.159.139.53:8000/api';
+const API_BASE_URL = 'https://api.ecetechnion.me/api';
 
 // --- TypeScript Interfaces ---
 interface Assignment {
