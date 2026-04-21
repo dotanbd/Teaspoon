@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Bell, RefreshCw, AlertCircle, Edit2, Trash2, Tag, BookType, Copy, Filter } from 'lucide-react';
-
+import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Bell, RefreshCw, AlertCircle, Edit2, Trash2, Tag, BookType, Copy, Filter, Circle, Sun, Moon } from 'lucide-react';
 
 const API_BASE_URL = 'https://api.ecetechnion.me/api';
 
@@ -36,16 +35,16 @@ const typeTranslations: Record<string, string> = {
   'Exam': 'מבחן'
 };
 
-// --- Dynamic Color Mapping (Updated with Logical CSS Properties for RTL) ---
+// --- Dynamic Color Mapping (Updated with Logical CSS Properties for RTL & Dark Mode) ---
 const courseThemes = [
-  { startBorder: 'border-s-blue-500', hover: 'hover:border-blue-300', badgeBg: 'bg-blue-100', badgeText: 'text-blue-800', badgeBorder: 'border-blue-200', dot: 'bg-blue-500' },
-  { startBorder: 'border-s-emerald-500', hover: 'hover:border-emerald-300', badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-800', badgeBorder: 'border-emerald-200', dot: 'bg-emerald-500' },
-  { startBorder: 'border-s-purple-500', hover: 'hover:border-purple-300', badgeBg: 'bg-purple-100', badgeText: 'text-purple-800', badgeBorder: 'border-purple-200', dot: 'bg-purple-500' },
-  { startBorder: 'border-s-rose-500', hover: 'hover:border-rose-300', badgeBg: 'bg-rose-100', badgeText: 'text-rose-800', badgeBorder: 'border-rose-200', dot: 'bg-rose-500' },
-  { startBorder: 'border-s-amber-500', hover: 'hover:border-amber-300', badgeBg: 'bg-amber-100', badgeText: 'text-amber-800', badgeBorder: 'border-amber-200', dot: 'bg-amber-500' },
-  { startBorder: 'border-s-cyan-500', hover: 'hover:border-cyan-300', badgeBg: 'bg-cyan-100', badgeText: 'text-cyan-800', badgeBorder: 'border-cyan-200', dot: 'bg-cyan-500' },
-  { startBorder: 'border-s-indigo-500', hover: 'hover:border-indigo-300', badgeBg: 'bg-indigo-100', badgeText: 'text-indigo-800', badgeBorder: 'border-indigo-200', dot: 'bg-indigo-500' },
-  { startBorder: 'border-s-fuchsia-500', hover: 'hover:border-fuchsia-300', badgeBg: 'bg-fuchsia-100', badgeText: 'text-fuchsia-800', badgeBorder: 'border-fuchsia-200', dot: 'bg-fuchsia-500' }
+  { startBorder: 'border-s-blue-500', hover: 'hover:border-blue-300 dark:hover:border-blue-400', badgeBg: 'bg-blue-100 dark:bg-blue-900/30', badgeText: 'text-blue-800 dark:text-blue-300', badgeBorder: 'border-blue-200 dark:border-blue-800/50', dot: 'bg-blue-500' },
+  { startBorder: 'border-s-emerald-500', hover: 'hover:border-emerald-300 dark:hover:border-emerald-400', badgeBg: 'bg-emerald-100 dark:bg-emerald-900/30', badgeText: 'text-emerald-800 dark:text-emerald-300', badgeBorder: 'border-emerald-200 dark:border-emerald-800/50', dot: 'bg-emerald-500' },
+  { startBorder: 'border-s-purple-500', hover: 'hover:border-purple-300 dark:hover:border-purple-400', badgeBg: 'bg-purple-100 dark:bg-purple-900/30', badgeText: 'text-purple-800 dark:text-purple-300', badgeBorder: 'border-purple-200 dark:border-purple-800/50', dot: 'bg-purple-500' },
+  { startBorder: 'border-s-rose-500', hover: 'hover:border-rose-300 dark:hover:border-rose-400', badgeBg: 'bg-rose-100 dark:bg-rose-900/30', badgeText: 'text-rose-800 dark:text-rose-300', badgeBorder: 'border-rose-200 dark:border-rose-800/50', dot: 'bg-rose-500' },
+  { startBorder: 'border-s-amber-500', hover: 'hover:border-amber-300 dark:hover:border-amber-400', badgeBg: 'bg-amber-100 dark:bg-amber-900/30', badgeText: 'text-amber-800 dark:text-amber-300', badgeBorder: 'border-amber-200 dark:border-amber-800/50', dot: 'bg-amber-500' },
+  { startBorder: 'border-s-cyan-500', hover: 'hover:border-cyan-300 dark:hover:border-cyan-400', badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30', badgeText: 'text-cyan-800 dark:text-cyan-300', badgeBorder: 'border-cyan-200 dark:border-cyan-800/50', dot: 'bg-cyan-500' },
+  { startBorder: 'border-s-indigo-500', hover: 'hover:border-indigo-300 dark:hover:border-indigo-400', badgeBg: 'bg-indigo-100 dark:bg-indigo-900/30', badgeText: 'text-indigo-800 dark:text-indigo-300', badgeBorder: 'border-indigo-200 dark:border-indigo-800/50', dot: 'bg-indigo-500' },
+  { startBorder: 'border-s-fuchsia-500', hover: 'hover:border-fuchsia-300 dark:hover:border-fuchsia-400', badgeBg: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', badgeText: 'text-fuchsia-800 dark:text-fuchsia-300', badgeBorder: 'border-fuchsia-200 dark:border-fuchsia-800/50', dot: 'bg-fuchsia-500' }
 ];
 
 const getCourseTheme = (courseCode: string) => {
@@ -62,6 +61,20 @@ export default function App() {
   const [coursesMap, setCoursesMap] = useState<CoursesMap>({});
   const [availableCourses, setAvailableCourses] = useState<string[]>([]);
   const [myCourses, setMyCourses] = useState<string[]>([]);
+  
+  // --- Theme State ---
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') as 'light' | 'dark' || 'light';
+    }
+    return 'light';
+  });
+
+  // --- Local Storage for Completed Tasks ---
+  const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
+    const saved = localStorage.getItem('coopBoardCompleted');
+    return saved ? JSON.parse(saved) : [];
+  });
   
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -86,6 +99,22 @@ export default function App() {
     time: '',
     isOptional: false
   });
+
+  // Apply Theme to Document
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Save completed tasks to local storage whenever they change
+  useEffect(() => {
+    localStorage.setItem('coopBoardCompleted', JSON.stringify(completedTasks));
+  }, [completedTasks]);
 
   // Initial Data Load
   useEffect(() => {
@@ -125,9 +154,19 @@ export default function App() {
     }
   };
 
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
   const toggleCourse = (courseCode: string) => {
     setMyCourses(prev => 
       prev.includes(courseCode) ? prev.filter(c => c !== courseCode) : [...prev, courseCode]
+    );
+  };
+
+  const toggleCompletion = (id: number) => {
+    setCompletedTasks(prev => 
+      prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]
     );
   };
 
@@ -181,6 +220,7 @@ export default function App() {
       const res = await fetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error("Failed to delete");
       setAssignments(prev => prev.filter(a => a.id !== id));
+      setCompletedTasks(prev => prev.filter(taskId => taskId !== id));
     } catch (error) {
       console.error("Failed to delete assignment:", error);
       alert("שגיאה: לא ניתן למחוק את המטלה. אנא בדוק את חיבור האינטרנט שלך.");
@@ -211,7 +251,6 @@ export default function App() {
         });
         if (!res.ok) throw new Error("Failed to update");
         const updated: Assignment = await res.json();
-        // Fix timezone issue by ensuring deadline ends with 'Z' for UTC
         if (!updated.deadline.endsWith('Z')) updated.deadline += 'Z';
 
         setAssignments(prev => prev.map(a => a.id === currentEditId ? updated : a).sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()));
@@ -223,7 +262,6 @@ export default function App() {
         });
         if (!res.ok) throw new Error("Failed to create");
         const added: Assignment = await res.json();
-        // Fix timezone issue by ensuring deadline ends with 'Z' for UTC
         if (!added.deadline.endsWith('Z')) added.deadline += 'Z';
 
         setAssignments(prev => [...prev, added].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()));
@@ -286,7 +324,6 @@ export default function App() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Using he-IL for Hebrew date formatting
     let dateStr = date.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
     if (date.toDateString() === today.toDateString()) dateStr = 'היום';
     else if (date.toDateString() === tomorrow.toDateString()) dateStr = 'מחר';
@@ -295,38 +332,47 @@ export default function App() {
     return `${dateStr} ב-${timeStr}`;
   };
 
-  const getCardClasses = (deadline: string, theme: any) => {
+  const getCardClasses = (deadline: string, theme: any, isCompleted: boolean) => {
+    if (isCompleted) return 'border-s-slate-300 dark:border-s-slate-600 border-y-slate-200 dark:border-y-slate-700 border-e-slate-200 dark:border-e-slate-700 bg-slate-100/60 dark:bg-slate-800/60 opacity-60 grayscale-[0.3] hover:opacity-80'; 
+
     const hoursLeft = (new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60);
-    if (hoursLeft < 0) return 'border-s-red-500 border-y-red-200 border-e-red-200 bg-red-50'; // Overdue
-    if (hoursLeft < 48) return 'border-s-orange-500 border-y-orange-200 border-e-orange-200 bg-orange-50'; // Urgent
-    return `${theme.startBorder} border-y-slate-200 border-e-slate-200 bg-white ${theme.hover}`; // Normal
+    if (hoursLeft < 0) return 'border-s-red-500 border-y-red-200 dark:border-y-red-900/50 border-e-red-200 dark:border-e-red-900/50 bg-red-50 dark:bg-red-900/20'; // Overdue
+    if (hoursLeft < 48) return 'border-s-orange-500 border-y-orange-200 dark:border-y-orange-900/50 border-e-orange-200 dark:border-e-orange-900/50 bg-orange-50 dark:bg-orange-900/20'; // Urgent
+    return `${theme.startBorder} border-y-slate-200 dark:border-y-slate-700 border-e-slate-200 dark:border-e-slate-700 bg-white dark:bg-slate-800 ${theme.hover}`; // Normal
   };
 
   const getTypeBadgeStyles = (type: string) => {
     switch(type) {
-      case 'Exam': return 'bg-slate-800 text-white border-slate-900';
-      case 'Webwork': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      default: return 'bg-white text-slate-600 border-slate-200 shadow-sm';
+      case 'Exam': return 'bg-slate-800 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-600';
+      case 'Webwork': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50';
+      default: return 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-sm';
     }
   };
 
   return (
-    // Added dir="rtl" to the root container
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans pb-12 transition-colors duration-200" dir="rtl">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between">
           <div className="flex items-center gap-3 mb-4 sm:mb-0">
-            <div className="bg-slate-900 p-2 rounded-lg">
+            <div className="bg-slate-900 dark:bg-slate-700 p-2 rounded-lg">
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">לוח מטלות שיתופי</h1>
-              <p className="text-sm text-slate-500">מעקב אחר תאריכי הגשה אקדמיים</p>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">לוח מטלות שיתופי</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">מעקב אחר תאריכי הגשה אקדמיים</p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
+            {/* Theme Toggle Button */}
+            <button 
+              onClick={toggleTheme}
+              className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400 rounded-lg transition-colors"
+              title={theme === 'light' ? 'מצב לילה' : 'מצב יום'}
+            >
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
             <button 
               onClick={openAddModal}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
@@ -341,30 +387,30 @@ export default function App() {
         
         {/* Sidebar: Course Selection & Sync */}
         <aside className="w-full md:w-72 flex flex-col gap-6 shrink-0">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h2 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-slate-700" /> הקורסים שלי
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-slate-700 dark:text-slate-300" /> הקורסים שלי
             </h2>
             <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pe-2">
               {availableCourses.map(code => {
                 const theme = getCourseTheme(code);
                 return (
-                  <label key={code} className="flex items-start gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group">
+                  <label key={code} className="flex items-start gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer transition-colors group">
                     <input 
                       type="checkbox" 
                       checked={myCourses.includes(code)}
                       onChange={() => toggleCourse(code)}
-                      className="w-4 h-4 mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-blue-600 focus:ring-blue-500 dark:focus:ring-offset-slate-800"
                     />
                     <div className="flex flex-col flex-1">
                       <div className="flex items-center gap-2">
                         {/* Dynamic Course Color Dot */}
                         <div className={`w-2 h-2 rounded-full ${theme.dot}`}></div>
-                        <span className="text-sm font-bold text-slate-700 line-clamp-1">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200 line-clamp-1">
                           {coursesMap[code] || 'קורס לא ידוע'}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-500 group-hover:text-slate-600 me-4 text-start" dir="ltr">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 me-4 text-start" dir="ltr">
                         {code}
                       </span>
                     </div>
@@ -372,27 +418,27 @@ export default function App() {
                 );
               })}
               {availableCourses.length === 0 && !fetchError && (
-                <p className="text-sm text-slate-500 italic">טרם נוספו קורסים.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 italic">טרם נוספו קורסים.</p>
               )}
             </div>
 
-            <hr className="border-slate-100 mb-6" />
+            <hr className="border-slate-100 dark:border-slate-700 mb-6 transition-colors" />
 
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
                 <Bell className="w-4 h-4 text-orange-500" /> סנכרון ליומן
               </h3>
-              <p className="text-xs text-slate-500">הרשמה לעדכונים אוטומטיים של הקורסים הנבחרים באפליקציית היומן שלך.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">הרשמה לעדכונים אוטומטיים של הקורסים הנבחרים באפליקציית היומן שלך.</p>
               <button 
                 onClick={handleSync}
                 disabled={syncing || myCourses.length === 0 || !!fetchError}
-                className="w-full flex justify-center items-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center gap-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {syncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                 {syncing ? 'מייצר קישור...' : 'העתקת קישור ליומן'}
               </button>
               {syncMessage && (
-                <p className={`text-xs text-center mt-2 font-medium ${syncMessage.includes('✅') ? 'text-emerald-600' : 'text-red-500'}`}>
+                <p className={`text-xs text-center mt-2 font-medium ${syncMessage.includes('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
                   {syncMessage}
                 </p>
               )}
@@ -405,7 +451,7 @@ export default function App() {
           
           {/* Type Filters */}
           <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-            <div className="flex items-center gap-2 ms-2 text-slate-500">
+            <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400">
               <Filter className="w-4 h-4" />
               <span className="text-sm font-semibold">סינון:</span>
             </div>
@@ -415,8 +461,8 @@ export default function App() {
                 onClick={() => setActiveTypeFilter(type)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                   activeTypeFilter === type 
-                    ? 'bg-slate-800 text-white shadow-sm' 
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    ? 'bg-slate-800 dark:bg-blue-600 text-white shadow-sm' 
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
                 {typeTranslations[type]}
@@ -429,16 +475,16 @@ export default function App() {
                <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
              </div>
           ) : fetchError ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
-              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-red-900 mb-1">שגיאת תקשורת</h3>
-              <p className="text-red-700 text-sm max-w-md mx-auto">{fetchError}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-8 text-center transition-colors">
+              <AlertCircle className="w-12 h-12 text-red-400 dark:text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-red-900 dark:text-red-200 mb-1">שגיאת תקשורת</h3>
+              <p className="text-red-700 dark:text-red-300 text-sm max-w-md mx-auto">{fetchError}</p>
             </div>
           ) : filteredAssignments.length === 0 ? (
-            <div className="bg-white border border-slate-200 border-dashed rounded-xl p-12 text-center">
-              <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-1">לא נמצאו מטלות!</h3>
-              <p className="text-slate-500 text-sm">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl p-12 text-center transition-colors">
+              <CheckCircle2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-50 mb-1">לא נמצאו מטלות!</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">
                 {activeTypeFilter !== 'All' 
                   ? `אין מטלות מסוג "${typeTranslations[activeTypeFilter]}" לקורסים הנבחרים.`
                   : "הכל מעודכן עבור הקורסים הנבחרים, או שטרם הוספו מטלות ללוח."}
@@ -448,23 +494,25 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {filteredAssignments.map((assignment) => {
                 const theme = getCourseTheme(assignment.courseCode);
+                const isCompleted = completedTasks.includes(assignment.id);
+                
                 return (
                   <div 
                     key={assignment.id} 
-                    className={`relative p-5 rounded-xl border-s-4 shadow-sm transition-all group ${getCardClasses(assignment.deadline, theme)}`}
+                    className={`relative p-5 rounded-xl border-s-4 shadow-sm transition-all duration-300 group ${getCardClasses(assignment.deadline, theme, isCompleted)}`}
                   >
                     {/* Actions (Edit/Delete) overlay */}
                     <div className="absolute top-4 end-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => openEditModal(assignment)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-md transition-colors"
                         title="עריכה"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDelete(assignment.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 rounded-md transition-colors"
                         title="מחיקה"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -473,33 +521,48 @@ export default function App() {
 
                     <div className="flex flex-wrap items-center gap-2 mb-3 pe-16">
                       {/* Dynamic Course Badge */}
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md border ${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`} dir="ltr">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md border ${isCompleted ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600' : `${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}`} dir="ltr">
                         <BookType className="w-3 h-3" />
                         {assignment.courseCode}
                       </span>
                       
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border ${getTypeBadgeStyles(assignment.type)}`}>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border ${isCompleted ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600' : getTypeBadgeStyles(assignment.type)}`}>
                         <Tag className="w-3 h-3" />
                         {typeTranslations[assignment.type]}
                       </span>
                       
                       {assignment.isOptional && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 text-slate-500 text-xs font-semibold rounded-md border border-slate-200">
-                          תאריך רשות
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-md border border-slate-200 dark:border-slate-700">
+                          תאריך אופציונלי
                         </span>
                       )}
                       
-                      {(new Date(assignment.deadline).getTime() - new Date().getTime()) < 86400000 * 2 && (new Date(assignment.deadline).getTime() > new Date().getTime()) && (
-                         <span className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-md">
+                      {!isCompleted && (new Date(assignment.deadline).getTime() - new Date().getTime()) < 86400000 * 2 && (new Date(assignment.deadline).getTime() > new Date().getTime()) && (
+                         <span className="flex items-center gap-1 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-md">
                            <AlertCircle className="w-3 h-3" /> מועד קרוב
                          </span>
                       )}
                     </div>
                     
-                    <h3 className="text-lg font-bold text-slate-900 mb-1 leading-tight">{assignment.title}</h3>
-                    <p className="text-xs text-slate-500 mb-4">{coursesMap[assignment.courseCode]}</p>
+                    {/* Checkbox and Title Row */}
+                    <div className="flex items-start gap-3 mb-1">
+                      <button 
+                        onClick={() => toggleCompletion(assignment.id)}
+                        className="shrink-0 text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors mt-0.5"
+                        title={isCompleted ? "סומן כהושלם (לחץ לביטול)" : "סמן כהושלם"}
+                      >
+                        {isCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> : <Circle className="w-5 h-5" />}
+                      </button>
+                      <h3 className={`text-lg font-bold leading-tight ${isCompleted ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-50'}`}>
+                        {assignment.title}
+                      </h3>
+                    </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
+                    <p className={`text-xs mb-4 ms-8 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {coursesMap[assignment.courseCode]}
+                    </p>
+                    
+                    <div className={`flex items-center gap-2 text-sm font-medium ms-8 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
                       <Clock className="w-4.5 h-4.5 text-slate-400" />
                       <span>{formatDateTime(assignment.deadline)}</span>
                     </div>
@@ -513,35 +576,35 @@ export default function App() {
 
       {/* Add / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-800">
+        <div className="fixed inset-0 bg-slate-900/50 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-100 dark:border-slate-700">
+            <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                 {isEditing ? 'עריכת מטלה' : 'הוספת מטלה חדשה'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">&times;</button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">מספר קורס</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">מספר קורס</label>
                   <input 
                     required
                     type="text" 
                     placeholder="עד 7 ספרות"
                     dir="ltr"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800 text-end"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-end"
                     value={formData.courseCode}
                     onChange={handleCourseCodeChange}
                   />
                 </div>
                 
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">סוג המטלה</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">סוג המטלה</label>
                   <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
                     value={formData.type}
                     onChange={e => setFormData({...formData, type: e.target.value})}
                   >
@@ -554,7 +617,7 @@ export default function App() {
 
               {formData.courseCode.length > 0 && (
                 <div className="animate-in slide-in-from-top-2 duration-300">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     שם הקורס {coursesMap[formData.courseCode] ? '(מילוי אוטומטי)' : '(קורס חדש)'}
                   </label>
                   <input 
@@ -563,8 +626,8 @@ export default function App() {
                     placeholder="לדוגמה: פיזיקה 1פ"
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${
                       coursesMap[formData.courseCode] 
-                        ? 'bg-slate-50 border-slate-200 text-slate-500' 
-                        : 'bg-white border-blue-300 text-slate-800'
+                        ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400' 
+                        : 'bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700 text-slate-800 dark:text-slate-100'
                     }`}
                     value={formData.courseName}
                     readOnly={!!coursesMap[formData.courseCode]}
@@ -574,12 +637,12 @@ export default function App() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">כותרת</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">כותרת</label>
                 <input 
                   required
                   type="text" 
                   placeholder="לדוגמה: עבודת אמצע"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
                 />
@@ -587,20 +650,20 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">תאריך הגשה</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">תאריך הגשה</label>
                   <input 
                     required
                     type="date" 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
                     value={formData.deadline}
                     onChange={e => setFormData({...formData, deadline: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">שעה (רשות)</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שעה (רשות)</label>
                   <input 
                     type="time" 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
                     value={formData.time}
                     onChange={e => setFormData({...formData, time: e.target.value})}
                   />
@@ -611,11 +674,11 @@ export default function App() {
                 <input 
                   type="checkbox" 
                   id="isOptional"
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-blue-600 focus:ring-blue-500 dark:focus:ring-offset-slate-800 cursor-pointer"
                   checked={formData.isOptional}
                   onChange={e => setFormData({...formData, isOptional: e.target.checked})}
                 />
-                <label htmlFor="isOptional" className="text-sm font-medium text-slate-700 cursor-pointer">
+                <label htmlFor="isOptional" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
                   תאריך אופציונלי
                 </label>
               </div>
@@ -624,13 +687,13 @@ export default function App() {
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors"
+                  className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors"
                 >
                   ביטול
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                 >
                   {isEditing ? 'שמירת שינויים' : 'הוספה ללוח'}
                 </button>
