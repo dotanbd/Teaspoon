@@ -1,353 +1,335 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, Calendar, Clock, Plus, CheckCircle2, Bell, RefreshCw, AlertCircle, Edit2, Trash2, Tag, BookType, Copy, Filter, Circle, Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { BookOpen, Calendar, Clock, Plus, CheckCircle, Bell, RefreshCw, AlertCircle, Edit, Trash, Tag, Book, Copy, Filter, Circle, Sun, Moon, LogIn, User, Search, X, Check, Paperclip, FileText, Upload, XCircle, Lightbulb, Calculator, Shield, Settings } from 'lucide-react';
 
-const API_BASE_URL = 'https://api.ecetechnion.me/api';
+const API_BASE_URL = import.meta.env.PROD ? 'https://api.ecetechnion.me/api/v2' : 'http://localhost:8001/api/v2';
 
 // --- TypeScript Interfaces ---
-interface Assignment {
-  id: number;
-  title: string;
-  courseCode: string;
-  type: string;
-  deadline: string;
-  isOptional: boolean;
-}
+interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; }
+interface Assignment { id: number; title: string; courseCode: string; type: string; deadline: string; isOptional: boolean; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
+interface UserProfile { id: number; email: string; name: string; picture: string; role: string; }
+interface CourseSyllabus { name: string; hw_weight: number; hw_keep: number; hw_magen: boolean; ww_weight: number; ww_keep: number; ww_magen: boolean; exam_weight: number; exam_magen: boolean; }
+interface CoursesMap { [key: string]: CourseSyllabus; }
+interface AssignmentFormData { title: string; courseCode: string; courseName: string; type: string; deadline: string; time: string; isOptional: boolean; }
+interface CourseTheme { startBorder: string; hover: string; badgeBg: string; badgeText: string; badgeBorder: string; dot: string; }
 
-interface CoursesMap {
-  [key: string]: string;
-}
-
-interface FormData {
-  title: string;
-  courseCode: string;
-  courseName: string;
-  type: string;
-  deadline: string;
-  time: string;
-  isOptional: boolean;
-}
-
-// --- Hebrew Translations Map for Types ---
-const typeTranslations: Record<string, string> = {
-  'All': 'הכל',
-  'Assignment': 'גיליון',
-  'Webwork': 'וובוורק',
-  'Exam': 'מבחן'
-};
-
-// --- Dynamic Color Mapping (Updated with Logical CSS Properties for RTL & Dark Mode) ---
-const courseThemes = [
+const typeTranslations: Record<string, string> = { 'All': 'הכל', 'Assignment': 'גיליון', 'Webwork': 'וובוורק', 'Exam': 'מבחן' };
+const courseThemes: CourseTheme[] = [
   { startBorder: 'border-s-blue-500', hover: 'hover:border-blue-300 dark:hover:border-blue-400', badgeBg: 'bg-blue-100 dark:bg-blue-900/30', badgeText: 'text-blue-800 dark:text-blue-300', badgeBorder: 'border-blue-200 dark:border-blue-800/50', dot: 'bg-blue-500' },
   { startBorder: 'border-s-emerald-500', hover: 'hover:border-emerald-300 dark:hover:border-emerald-400', badgeBg: 'bg-emerald-100 dark:bg-emerald-900/30', badgeText: 'text-emerald-800 dark:text-emerald-300', badgeBorder: 'border-emerald-200 dark:border-emerald-800/50', dot: 'bg-emerald-500' },
   { startBorder: 'border-s-purple-500', hover: 'hover:border-purple-300 dark:hover:border-purple-400', badgeBg: 'bg-purple-100 dark:bg-purple-900/30', badgeText: 'text-purple-800 dark:text-purple-300', badgeBorder: 'border-purple-200 dark:border-purple-800/50', dot: 'bg-purple-500' },
   { startBorder: 'border-s-rose-500', hover: 'hover:border-rose-300 dark:hover:border-rose-400', badgeBg: 'bg-rose-100 dark:bg-rose-900/30', badgeText: 'text-rose-800 dark:text-rose-300', badgeBorder: 'border-rose-200 dark:border-rose-800/50', dot: 'bg-rose-500' },
-  { startBorder: 'border-s-amber-500', hover: 'hover:border-amber-300 dark:hover:border-amber-400', badgeBg: 'bg-amber-100 dark:bg-amber-900/30', badgeText: 'text-amber-800 dark:text-amber-300', badgeBorder: 'border-amber-200 dark:border-amber-800/50', dot: 'bg-amber-500' },
-  { startBorder: 'border-s-cyan-500', hover: 'hover:border-cyan-300 dark:hover:border-cyan-400', badgeBg: 'bg-cyan-100 dark:bg-cyan-900/30', badgeText: 'text-cyan-800 dark:text-cyan-300', badgeBorder: 'border-cyan-200 dark:border-cyan-800/50', dot: 'bg-cyan-500' },
-  { startBorder: 'border-s-indigo-500', hover: 'hover:border-indigo-300 dark:hover:border-indigo-400', badgeBg: 'bg-indigo-100 dark:bg-indigo-900/30', badgeText: 'text-indigo-800 dark:text-indigo-300', badgeBorder: 'border-indigo-200 dark:border-indigo-800/50', dot: 'bg-indigo-500' },
-  { startBorder: 'border-s-fuchsia-500', hover: 'hover:border-fuchsia-300 dark:hover:border-fuchsia-400', badgeBg: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', badgeText: 'text-fuchsia-800 dark:text-fuchsia-300', badgeBorder: 'border-fuchsia-200 dark:border-fuchsia-800/50', dot: 'bg-fuchsia-500' }
+  { startBorder: 'border-s-amber-500', hover: 'hover:border-amber-300 dark:hover:border-amber-400', badgeBg: 'bg-amber-100 dark:bg-amber-900/30', badgeText: 'text-amber-800 dark:text-amber-300', badgeBorder: 'border-amber-200 dark:border-amber-800/50', dot: 'bg-amber-500' }
 ];
 
-const getCourseTheme = (courseCode: string) => {
-  let hash = 0;
-  for (let i = 0; i < courseCode.length; i++) {
-    hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % courseThemes.length;
-  return courseThemes[index];
+const getCourseTheme = (courseCode: string): CourseTheme => {
+  let hash = 0; for (let i = 0; i < courseCode.length; i++) hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
+  return courseThemes[Math.abs(hash) % courseThemes.length];
 };
 
 export default function App() {
+  const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('teaspoon_jwt') : null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [coursesMap, setCoursesMap] = useState<CoursesMap>({});
-  const [availableCourses, setAvailableCourses] = useState<string[]>([]);
-  const [myCourses, setMyCourses] = useState<string[]>([]);
   
-  // --- Theme State ---
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') as 'light' | 'dark' || 'light';
-    }
-    return 'light';
-  });
+  const [myCourses, setMyCourses] = useState<string[]>([]); 
+  const [visibleCourses, setVisibleCourses] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // --- Local Storage for Completed Tasks ---
-  const [completedTasks, setCompletedTasks] = useState<number[]>(() => {
-    const saved = localStorage.getItem('coopBoardCompleted');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => { if (typeof window !== 'undefined') return localStorage.getItem('theme') as 'light' | 'dark' || 'light'; return 'light'; });
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState<boolean>(false);
-  const [syncMessage, setSyncMessage] = useState<string>('');
-  
-  // Filtering State
   const [activeTypeFilter, setActiveTypeFilter] = useState<string>('All');
   const assignmentTypes = ['All', 'Assignment', 'Webwork', 'Exam'];
 
-  // Modal State
+  // Modals State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
-  
-  const [formData, setFormData] = useState<FormData>({ 
-    title: '', 
-    courseCode: '', 
-    courseName: '', 
-    type: 'Assignment', 
-    deadline: '', 
-    time: '',
-    isOptional: false
-  });
+  const [formData, setFormData] = useState<AssignmentFormData>({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false });
 
-  // Apply Theme to Document
+  // Course Settings State
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
+  const [editingCourseCode, setEditingCourseCode] = useState<string | null>(null);
+  const [courseFormData, setCourseFormData] = useState<CourseSyllabus>({ name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false });
+
+  // File Upload State
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
+  const [editingFileId, setEditingFileId] = useState<number | null>(null);
+  const [editFileName, setEditFileName] = useState<string>('');
+
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      if (urlToken) { localStorage.setItem('teaspoon_jwt', urlToken); setToken(urlToken); window.history.replaceState({}, document.title, window.location.pathname); }
     }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  // Save completed tasks to local storage whenever they change
-  useEffect(() => {
-    localStorage.setItem('coopBoardCompleted', JSON.stringify(completedTasks));
-  }, [completedTasks]);
-
-  // Initial Data Load
-  useEffect(() => {
-    fetchAssignments();
   }, []);
 
-  const fetchAssignments = async () => {
-    setLoading(true);
-    setFetchError(null);
-    
-    try {
-      const [coursesRes, assignmentsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/courses`),
-        fetch(`${API_BASE_URL}/assignments`)
-      ]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const root = window.document.documentElement;
+      theme === 'dark' ? root.classList.add('dark') : root.classList.remove('dark');
+      localStorage.setItem('theme', theme);
+    }
+  }, [theme]);
 
-      if (!coursesRes.ok || !assignmentsRes.ok) {
-        throw new Error("Server responded with an error.");
+  const fetchAllData = useCallback(async () => {
+    setLoading(true); setFetchError(null);
+    try {
+      const headers: HeadersInit = {}; if (token) headers['Authorization'] = `Bearer ${token}`;
+      const [coursesRes, assignmentsRes] = await Promise.all([ fetch(`${API_BASE_URL}/courses`), fetch(`${API_BASE_URL}/assignments`, { headers }) ]);
+      if (!coursesRes.ok || !assignmentsRes.ok) throw new Error("Network error");
+      
+      const fetchedCoursesMap = await coursesRes.json();
+      const mappedCoursesMap: CoursesMap = {};
+      
+      Object.entries(fetchedCoursesMap).forEach(([k, v]: [string, any]) => {
+          mappedCoursesMap[k] = {
+              name: v.name,
+              hw_weight: v.hw_weight,
+              hw_keep: v.hw_keep !== undefined ? v.hw_keep : (v.hw_drop || 0), 
+              hw_magen: v.hw_magen || false,
+              ww_weight: v.ww_weight,
+              ww_keep: v.ww_keep !== undefined ? v.ww_keep : (v.ww_drop || 0),
+              ww_magen: v.ww_magen || false,
+              exam_weight: v.exam_weight,
+              exam_magen: v.exam_magen || false
+          };
+      });
+      setCoursesMap(mappedCoursesMap);
+
+      let fetchedAssignments: Assignment[] = await assignmentsRes.json();
+
+      if (token) {
+        try {
+          const [userRes, userCoursesRes] = await Promise.all([ fetch(`${API_BASE_URL}/users/me`, { headers }), fetch(`${API_BASE_URL}/users/me/courses`, { headers }) ]);
+          if (userRes.ok) {
+            setUserProfile(await userRes.json());
+            const dbCourses = await userCoursesRes.json(); setMyCourses(dbCourses); setVisibleCourses(dbCourses);
+          } else throw new Error("Unauthorized");
+        } catch (e) { localStorage.removeItem('teaspoon_jwt'); setToken(null); }
+      } else {
+        const localCourses = JSON.parse(localStorage.getItem('guest_courses') || '[]');
+        const localCompletions = JSON.parse(localStorage.getItem('guest_completions') || '[]');
+        const localGrades = JSON.parse(localStorage.getItem('guest_grades') || '{}');
+        setMyCourses(localCourses); setVisibleCourses(localCourses);
+        fetchedAssignments = fetchedAssignments.map(a => ({ ...a, isCompleted: localCompletions.includes(a.id), grade: localGrades[a.id] ?? null }));
       }
+      setAssignments(fetchedAssignments.map(a => ({ ...a, deadline: a.deadline.endsWith('Z') ? a.deadline : `${a.deadline}Z` })).sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()));
+    } catch (error: any) { setFetchError('שגיאת תקשורת עם שרת V2.'); } finally { setLoading(false); }
+  }, [token]);
 
-      const fetchedCoursesMap: CoursesMap = await coursesRes.json();
-      const fetchedAssignments: Assignment[] = await assignmentsRes.json();
-      
-      setCoursesMap(fetchedCoursesMap);
-      
-      const codes = Array.from(new Set(fetchedAssignments.map(a => a.courseCode)));
-      setAvailableCourses(codes);
-      if (myCourses.length === 0) setMyCourses(codes);
-      
-      const sorted = fetchedAssignments.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
-      setAssignments(sorted);
-    } catch (error) {
-      console.error("Error fetching data from API:", error);
-      setFetchError(`שגיאת רשת: לא ניתן להתחבר לשרת בכתובת ${API_BASE_URL}. ודא שהשרת פועל, שהגדרות ה-CORS תקינות ושכתובת ה-IP נכונה.`);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => { fetchAllData(); }, [fetchAllData]);
+
+  // --- Course Functions ---
+  const syncCourses = (newCourses: string[]) => {
+    if (token) fetch(`${API_BASE_URL}/users/me/courses`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(newCourses) });
+    else localStorage.setItem('guest_courses', JSON.stringify(newCourses));
+  };
+  const handleAddCourse = (code: string) => { if (!myCourses.includes(code)) { const updated = [...myCourses, code]; setMyCourses(updated); setVisibleCourses(prev => [...prev, code]); syncCourses(updated); } setSearchQuery(''); setIsSearchFocused(false); };
+  const handleRemoveCourse = (code: string) => { const updated = myCourses.filter(c => c !== code); setMyCourses(updated); setVisibleCourses(prev => prev.filter(c => c !== code)); syncCourses(updated); };
+  const toggleVisibleCourse = (code: string) => setVisibleCourses(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+
+  const openCourseSettings = (code: string) => {
+    setEditingCourseCode(code);
+    const syl = coursesMap[code] || { name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false };
+    setCourseFormData(syl);
+    setIsCourseModalOpen(true);
   };
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  const handleSaveCourseSettings = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!token || !editingCourseCode) return;
+    setCoursesMap(prev => ({ ...prev, [editingCourseCode]: courseFormData }));
+    setIsCourseModalOpen(false);
 
-  const toggleCourse = (courseCode: string) => {
-    setMyCourses(prev => 
-      prev.includes(courseCode) ? prev.filter(c => c !== courseCode) : [...prev, courseCode]
-    );
-  };
-
-  const toggleCompletion = (id: number) => {
-    setCompletedTasks(prev => 
-      prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]
-    );
-  };
-
-  const handleCourseCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, ''); 
-    val = val.replace(/^0+(?=\d)/, ''); 
-    if (val.length > 7) val = val.slice(0, 7);
-
-    const knownName = coursesMap[val] || '';
-    
-    setFormData({ 
-      ...formData, 
-      courseCode: val, 
-      courseName: knownName || formData.courseName
-    });
-  };
-
-  const openAddModal = () => {
-    setIsEditing(false);
-    setCurrentEditId(null);
-    setFormData({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false });
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (assignment: Assignment) => {
-    const dateObj = new Date(assignment.deadline);
-    const yyyy = dateObj.getFullYear();
-    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const dd = String(dateObj.getDate()).padStart(2, '0');
-    const hh = String(dateObj.getHours()).padStart(2, '0');
-    const min = String(dateObj.getMinutes()).padStart(2, '0');
-
-    setIsEditing(true);
-    setCurrentEditId(assignment.id);
-    setFormData({
-      title: assignment.title,
-      courseCode: assignment.courseCode,
-      courseName: coursesMap[assignment.courseCode] || '',
-      type: assignment.type,
-      deadline: `${yyyy}-${mm}-${dd}`,
-      time: `${hh}:${min}`,
-      isOptional: assignment.isOptional || false
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("האם ברצונך למחוק מטלה זו?")) return;
-    
-    try {
-      const res = await fetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error("Failed to delete");
-      setAssignments(prev => prev.filter(a => a.id !== id));
-      setCompletedTasks(prev => prev.filter(taskId => taskId !== id));
-    } catch (error) {
-      console.error("Failed to delete assignment:", error);
-      alert("שגיאה: לא ניתן למחוק את המטלה. אנא בדוק את חיבור האינטרנט שלך.");
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title || !formData.courseCode || !formData.deadline) return;
-
-    const dateTimeString = `${formData.deadline}T${formData.time || '23:59'}:00`;
-    
     const payload = {
-      title: formData.title,
-      courseCode: formData.courseCode,
-      courseName: formData.courseName,
-      type: formData.type,
-      deadline: new Date(dateTimeString).toISOString(),
-      isOptional: formData.isOptional
+        ...courseFormData,
+        hw_drop: courseFormData.hw_keep,
+        ww_drop: courseFormData.ww_keep
     };
 
+    try { await fetch(`${API_BASE_URL}/courses/${editingCourseCode}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch (err) {}
+  };
+
+  // --- Assignment Functions ---
+  const toggleCompletion = async (id: number) => {
+    setAssignments(prev => prev.map(a => a.id === id ? { ...a, isCompleted: !a.isCompleted } : a));
+    if (token) fetch(`${API_BASE_URL}/assignments/${id}/toggle`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+    else {
+      const localCompletions = JSON.parse(localStorage.getItem('guest_completions') || '[]');
+      const updated = localCompletions.includes(id) ? localCompletions.filter((i: number) => i !== id) : [...localCompletions, id];
+      localStorage.setItem('guest_completions', JSON.stringify(updated));
+    }
+  };
+
+  const handleGradeUpdate = async (id: number, val: string) => {
+    const grade = val === '' ? null : parseInt(val);
+    setAssignments(prev => prev.map(a => a.id === id ? { ...a, grade } : a));
+    if (token) fetch(`${API_BASE_URL}/assignments/${id}/grade`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ grade }) });
+    else {
+      const localGrades = JSON.parse(localStorage.getItem('guest_grades') || '{}');
+      if (grade === null) delete localGrades[id]; else localGrades[id] = grade;
+      localStorage.setItem('guest_grades', JSON.stringify(localGrades));
+    }
+  };
+
+  const openAddModal = () => { setIsEditing(false); setCurrentEditId(null); setFormData({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false }); setIsModalOpen(true); };
+  const openEditModal = (assignment: Assignment) => {
+    const d = new Date(assignment.deadline); setIsEditing(true); setCurrentEditId(assignment.id);
+    setFormData({ title: assignment.title, courseCode: assignment.courseCode, courseName: coursesMap[assignment.courseCode]?.name || '', type: assignment.type, isOptional: assignment.isOptional || false, deadline: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` });
+    setIsModalOpen(true);
+  };
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("למחוק מטלה זו ואת כל קבציה?")) return;
+    try { const res = await fetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }}); if (!res.ok) throw new Error("Failed"); setAssignments(prev => prev.filter(a => a.id !== id)); } catch (error) { alert("שגיאה במחיקה."); }
+  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!token) return;
+    const payload = { title: formData.title, courseCode: formData.courseCode, type: formData.type, deadline: new Date(`${formData.deadline}T${formData.time || '23:59'}:00`).toISOString(), isOptional: formData.isOptional };
     try {
-      if (isEditing && currentEditId !== null) {
-        const res = await fetch(`${API_BASE_URL}/assignments/${currentEditId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error("Failed to update");
-        const updated: Assignment = await res.json();
-        if (!updated.deadline.endsWith('Z')) updated.deadline += 'Z';
+      if (!coursesMap[formData.courseCode]) {
+         await fetch(`${API_BASE_URL}/courses/${formData.courseCode}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: formData.courseName, hw_weight: 0, hw_drop: 0, ww_weight: 0, ww_drop: 0, exam_weight: 0, hw_magen: false, ww_magen: false, exam_magen: false }) });
+      }
+      await fetch(`${API_BASE_URL}/assignments${isEditing ? `/${currentEditId}` : ''}`, { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
+      fetchAllData(); setIsModalOpen(false); if (!myCourses.includes(payload.courseCode)) handleAddCourse(payload.courseCode);
+    } catch (error) { alert("שגיאה בשמירה."); }
+  };
 
-        setAssignments(prev => prev.map(a => a.id === currentEditId ? updated : a).sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()));
-      } else {
-        const res = await fetch(`${API_BASE_URL}/assignments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error("Failed to create");
-        const added: Assignment = await res.json();
-        if (!added.deadline.endsWith('Z')) added.deadline += 'Z';
+  // --- Grade Calculation Logic (Updated "Keep Top X" Rules) ---
+  const calculateCourseGrade = (code: string) => {
+    const syllabus = coursesMap[code] || { name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false };
+    const courseAssignments = assignments.filter(a => a.courseCode === code);
+    if (courseAssignments.length === 0 || !courseAssignments.some(a => a.grade !== null)) return null;
 
-        setAssignments(prev => [...prev, added].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()));
-        
-        if (!availableCourses.includes(payload.courseCode)) {
-          setAvailableCourses(prev => [...prev, payload.courseCode]);
-          setMyCourses(prev => [...prev, payload.courseCode]);
+    const processCategory = (type: string, weight: number, keepCount: number) => {
+      if (weight === 0) return { earned: 0, possible: 0, rawAvg: undefined };
+      
+      const items = courseAssignments.filter(a => a.type === type);
+      const gradedItems = items.filter(a => a.grade !== null);
+      if (gradedItems.length === 0) return { earned: 0, possible: weight, rawAvg: undefined }; 
+
+      const actualKeep = keepCount > 0 ? keepCount : Math.max(1, gradedItems.length);
+      let grades = gradedItems.map(a => a.grade as number).sort((a, b) => b - a); 
+      
+      if (keepCount > 0) {
+        while (grades.length < actualKeep) {
+          grades.push(0);
         }
       }
 
-      if (!coursesMap[formData.courseCode]) {
-        setCoursesMap(prev => ({ ...prev, [formData.courseCode]: formData.courseName }));
+      const keptGrades = grades.slice(0, actualKeep);
+      const avg = keptGrades.reduce((sum, g) => sum + g, 0) / actualKeep;
+
+      return { earned: (avg / 100) * weight, possible: weight, rawAvg: avg };
+    };
+
+    const hw = processCategory('Assignment', syllabus.hw_weight || 0, syllabus.hw_keep || 0);
+    const ww = processCategory('Webwork', syllabus.ww_weight || 0, syllabus.ww_keep || 0);
+    const exam = processCategory('Exam', syllabus.exam_weight || 0, 0); 
+
+    let final_hw_earned = hw.earned; let final_hw_possible = hw.possible;
+    let final_ww_earned = ww.earned; let final_ww_possible = ww.possible;
+    let final_exam_earned = exam.earned; let final_exam_possible = exam.possible;
+    let isMagenActive = false;
+
+    if (exam.possible > 0 && exam.rawAvg !== undefined) {
+      if (syllabus.hw_magen && hw.possible > 0 && hw.rawAvg !== undefined && hw.rawAvg < exam.rawAvg) {
+        final_exam_possible += hw.possible;
+        final_exam_earned += (exam.rawAvg / 100) * hw.possible;
+        final_hw_possible = 0; final_hw_earned = 0;
+        isMagenActive = true;
       }
-      
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error("Failed to save assignment:", error);
-      alert("שגיאה: לא ניתן לשמור את המטלה. אנא בדוק את חיבור האינטרנט שלך.");
+      if (syllabus.ww_magen && ww.possible > 0 && ww.rawAvg !== undefined && ww.rawAvg < exam.rawAvg) {
+        final_exam_possible += ww.possible;
+        final_exam_earned += (exam.rawAvg / 100) * ww.possible;
+        final_ww_possible = 0; final_ww_earned = 0;
+        isMagenActive = true;
+      }
     }
+
+    const totalEarned = final_hw_earned + final_ww_earned + final_exam_earned;
+    const totalPossible = final_hw_possible + final_ww_possible + final_exam_possible;
+
+    // Fallback unweighted average if syllabus is fully empty (0 weights)
+    if (totalPossible === 0) {
+        const gradedItems = courseAssignments.filter(a => a.grade !== null);
+        if (gradedItems.length === 0) return null;
+        const avg = gradedItems.reduce((sum, a) => sum + (a.grade as number), 0) / gradedItems.length;
+        return { earned: avg.toFixed(1), possible: '100', isMagen: false, unconfigured: true };
+    }
+
+    return { earned: totalEarned.toFixed(1), possible: totalPossible.toFixed(1), isMagen: isMagenActive, unconfigured: false };
   };
 
-  const handleSync = () => {
-    if (myCourses.length === 0) {
-      setSyncMessage('יש לבחור לפחות קורס אחד לסנכרון.');
-      return;
-    }
-    
-    setSyncing(true);
-    setSyncMessage('');
-    
-    const feedUrl = `${API_BASE_URL}/calendar/feed.ics?courses=${myCourses.join(',')}`;
-
+  // --- MinIO ---
+  const handleFileUpload = async (assignmentId: number, e: React.ChangeEvent<HTMLInputElement>, category: string) => {
+    if (!e.target.files || e.target.files.length === 0 || !token) return;
+    const file = e.target.files[0]; const inputElement = e.target; 
+    setUploadingId(assignmentId);
+    const formData = new FormData(); formData.append('file', file); formData.append('category', category);
     try {
-      const textArea = document.createElement("textarea");
-      textArea.value = feedUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      textArea.remove();
-
-      setSyncMessage('✅ הקישור הועתק! הוסף אותו תחת "לוח שנה מכתובת" (From URL) ביומן שלך.');
-    } catch (error) {
-      setSyncMessage('❌ העתקת הקישור נכשלה.');
-      console.error("Clipboard copy failed:", error);
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncMessage(''), 6000);
-    }
+      const res = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/attachments`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      await fetchAllData();
+    } catch (err) { alert("שגיאה בהעלאת הקובץ."); } finally { setUploadingId(null); inputElement.value = ''; }
+  };
+  const handleRenameAttachment = async (assignmentId: number, attachmentId: number) => {
+    if (!token || !editFileName.trim()) return;
+    const oldName = assignments.find(a => a.id === assignmentId)?.attachments.find(a => a.id === attachmentId)?.filename;
+    const extension = oldName?.includes('.') ? oldName.substring(oldName.lastIndexOf('.')) : '';
+    const finalName = editFileName.includes('.') ? editFileName : `${editFileName}${extension}`;
+    setAssignments(prev => prev.map(a => a.id === assignmentId ? { ...a, attachments: (a.attachments || []).map(att => att.id === attachmentId ? { ...att, filename: finalName } : att) } : a));
+    setEditingFileId(null);
+    try { await fetch(`${API_BASE_URL}/attachments/${attachmentId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ filename: finalName }) }); } catch (err) { fetchAllData(); }
+  };
+  const handleDeleteAttachment = async (assignmentId: number, attachmentId: number) => {
+    if (!token || !window.confirm("למחוק קובץ זה?")) return;
+    setAssignments(prev => prev.map(a => a.id === assignmentId ? { ...a, attachments: (a.attachments || []).filter(att => att.id !== attachmentId) } : a));
+    try { await fetch(`${API_BASE_URL}/attachments/${attachmentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); } catch (err) { fetchAllData(); }
   };
 
-  const filteredAssignments = assignments.filter(a => {
-    const isCourseSelected = myCourses.includes(a.courseCode);
-    const isTypeSelected = activeTypeFilter === 'All' || a.type === activeTypeFilter;
-    return isCourseSelected && isTypeSelected;
-  });
+  const searchResults = Object.entries(coursesMap).filter(([code, syl]) => { if (!searchQuery) return false; return code.includes(searchQuery) || (syl.name && syl.name.toLowerCase().includes(searchQuery.toLowerCase())); }).slice(0, 5);
+  const filteredAssignments = assignments.filter(a => visibleCourses.includes(a.courseCode) && (activeTypeFilter === 'All' || a.type === activeTypeFilter));
 
   const formatDateTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
+    const date = new Date(isoString); const today = new Date(); const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
     let dateStr = date.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
-    if (date.toDateString() === today.toDateString()) dateStr = 'היום';
-    else if (date.toDateString() === tomorrow.toDateString()) dateStr = 'מחר';
-
-    const timeStr = date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
-    return `${dateStr} ב-${timeStr}`;
+    if (date.toDateString() === today.toDateString()) dateStr = 'היום'; else if (date.toDateString() === tomorrow.toDateString()) dateStr = 'מחר';
+    return `${dateStr} ב-${date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
   };
-
-  const getCardClasses = (deadline: string, theme: any, isCompleted: boolean) => {
+  const getCardClasses = (deadline: string, courseTheme: CourseTheme, isCompleted: boolean) => {
     if (isCompleted) return 'border-s-slate-300 dark:border-s-slate-600 border-y-slate-200 dark:border-y-slate-700 border-e-slate-200 dark:border-e-slate-700 bg-slate-100/60 dark:bg-slate-800/60 opacity-60 grayscale-[0.3] hover:opacity-80'; 
-
     const hoursLeft = (new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60);
-    if (hoursLeft < 0) return 'border-s-red-500 border-y-red-200 dark:border-y-red-900/50 border-e-red-200 dark:border-e-red-900/50 bg-red-50 dark:bg-red-900/20'; // Overdue
-    if (hoursLeft < 48) return 'border-s-orange-500 border-y-orange-200 dark:border-y-orange-900/50 border-e-orange-200 dark:border-e-orange-900/50 bg-orange-50 dark:bg-orange-900/20'; // Urgent
-    return `${theme.startBorder} border-y-slate-200 dark:border-y-slate-700 border-e-slate-200 dark:border-e-slate-700 bg-white dark:bg-slate-800 ${theme.hover}`; // Normal
+    if (hoursLeft < 0) return 'border-s-red-500 border-y-red-200 dark:border-y-red-900/50 border-e-red-200 dark:border-e-red-900/50 bg-red-50 dark:bg-red-900/20';
+    if (hoursLeft < 48) return 'border-s-orange-500 border-y-orange-200 dark:border-y-orange-900/50 border-e-orange-200 dark:border-e-orange-900/50 bg-orange-50 dark:bg-orange-900/20';
+    return `${courseTheme.startBorder} border-y-slate-200 dark:border-y-slate-700 border-e-slate-200 dark:border-e-slate-700 bg-white dark:bg-slate-800 ${courseTheme.hover}`;
   };
 
-  const getTypeBadgeStyles = (type: string) => {
-    switch(type) {
-      case 'Exam': return 'bg-slate-800 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-600';
-      case 'Webwork': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50';
-      default: return 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-sm';
-    }
-  };
+  const renderAttachment = (att: Attachment, assignmentId: number) => (
+    <div key={att.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 rounded p-1.5 border border-slate-100 dark:border-slate-700/50 group/file">
+      {editingFileId === att.id ? (
+        <div className="flex items-center gap-2 flex-1 ml-4" onClick={e => e.preventDefault()}>
+          <input autoFocus type="text" value={editFileName} onChange={e => setEditFileName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRenameAttachment(assignmentId, att.id)} className="text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-600 rounded px-1.5 py-0.5 w-full outline-none focus:ring-1 focus:ring-blue-500" />
+          <button onClick={() => handleRenameAttachment(assignmentId, att.id)} className="text-emerald-500 hover:text-emerald-600 p-0.5"><Check className="w-3 h-3" /></button>
+          <button onClick={() => setEditingFileId(null)} className="text-slate-400 hover:text-red-500 p-0.5"><X className="w-3 h-3" /></button>
+        </div>
+      ) : (
+        <a href={att.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 overflow-hidden hover:underline ${att.category === 'solution' ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`}>
+          <FileText className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-xs truncate" dir="ltr">{att.filename}</span>
+        </a>
+      )}
+      {!editingFileId && token && (userProfile?.id === att.uploader_id || userProfile?.role === 'admin') && (
+        <div className="flex gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0">
+          <button onClick={(e) => { e.preventDefault(); setEditingFileId(att.id); setEditFileName(att.filename.replace(/\.[^/.]+$/, "")); }} className="text-slate-400 hover:text-blue-500" title="שינוי שם"><Edit className="w-3.5 h-3.5" /></button>
+          <button onClick={() => handleDeleteAttachment(assignmentId, att.id)} className="text-slate-400 hover:text-red-500" title="מחיקה"><XCircle className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans pb-12 transition-colors duration-200" dir="rtl">
@@ -355,349 +337,245 @@ export default function App() {
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between">
           <div className="flex items-center gap-3 mb-4 sm:mb-0">
-            <div className="bg-slate-900 dark:bg-slate-700 p-2 rounded-lg">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
+            <div className="bg-slate-900 dark:bg-slate-700 p-2 rounded-lg"><Calendar className="w-6 h-6 text-white" /></div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">לוח מטלות שיתופי</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">מעקב אחר תאריכי הגשה אקדמיים</p>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">Teaspoon</h1>
+              {token ? <p className="text-sm text-slate-500 dark:text-slate-400">שלום {userProfile?.name?.split(' ')[0]}!</p> : <p className="text-sm text-slate-500 dark:text-slate-400 italic">מצב אורח</p>}
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Theme Toggle Button */}
-            <button 
-              onClick={toggleTheme}
-              className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400 rounded-lg transition-colors"
-              title={theme === 'light' ? 'מצב לילה' : 'מצב יום'}
-            >
-              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            </button>
-            <button 
-              onClick={openAddModal}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-            >
-              <Plus className="w-4 h-4" /> הוספת מטלה
-            </button>
+            <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"><Moon className="w-5 h-5 hidden dark:block" /><Sun className="w-5 h-5 block dark:hidden" /></button>
+            {token ? (
+              <>
+                <button onClick={() => { localStorage.removeItem('teaspoon_jwt'); setToken(null); setUserProfile(null); }} className="flex items-center gap-2 p-2 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium" title="התנתק"><User className="w-5 h-5" /> התנתק</button>
+                <button onClick={openAddModal} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"><Plus className="w-4 h-4" /> הוספת מטלה</button>
+              </>
+            ) : (
+              <button onClick={() => window.location.href = `${API_BASE_URL}/auth/login`} className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"><LogIn className="w-4 h-4" /> התחברות לעריכה</button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
-        
-        {/* Sidebar: Course Selection & Sync */}
-        <aside className="w-full md:w-72 flex flex-col gap-6 shrink-0">
-          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
-            <h2 className="font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-slate-700 dark:text-slate-300" /> הקורסים שלי
-            </h2>
-            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto pe-2">
-              {availableCourses.map(code => {
-                const theme = getCourseTheme(code);
-                return (
-                  <label key={code} className="flex items-start gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer transition-colors group">
-                    <input 
-                      type="checkbox" 
-                      checked={myCourses.includes(code)}
-                      onChange={() => toggleCourse(code)}
-                      className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-blue-600 focus:ring-blue-500 dark:focus:ring-offset-slate-800"
-                    />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center gap-2">
-                        {/* Dynamic Course Color Dot */}
-                        <div className={`w-2 h-2 rounded-full ${theme.dot}`}></div>
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200 line-clamp-1">
-                          {coursesMap[code] || 'קורס לא ידוע'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 me-4 text-start" dir="ltr">
-                        {code}
-                      </span>
-                    </div>
-                  </label>
-                );
-              })}
-              {availableCourses.length === 0 && !fetchError && (
-                <p className="text-sm text-slate-500 dark:text-slate-400 italic">טרם נוספו קורסים.</p>
+        {/* Sidebar */}
+        <aside className="w-full md:w-72 flex flex-col gap-6 shrink-0 relative">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors relative z-20">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2"><BookOpen className="w-5 h-5 text-slate-700 dark:text-slate-300" /> הקורסים שלי</h2>
+            
+            <div className="relative mb-6">
+              <div className="relative">
+                <input type="text" placeholder="חיפוש קורס מהטכניון..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setIsSearchFocused(true)} onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)} className="w-full pl-4 pr-10 py-2 border rounded-lg bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors dark:text-slate-100" />
+                <Search className="w-4 h-4 absolute right-3 top-2.5 text-slate-400" />
+              </div>
+              {isSearchFocused && searchQuery && (
+                <div className="absolute z-30 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                  {searchResults.length > 0 ? searchResults.map(([code, syl]) => (
+                    <button key={code} onClick={() => handleAddCourse(code)} className="w-full text-right px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 flex flex-col items-start border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors">
+                      <div className="flex justify-between items-center w-full"><span className="text-sm font-bold text-slate-800 dark:text-slate-100">{syl.name}</span>{myCourses.includes(code) && <CheckCircle className="w-4 h-4 text-emerald-500" />}</div>
+                      <span className="text-xs text-slate-500">{code}</span>
+                    </button>
+                  )) : (<div className="px-4 py-3 text-sm text-slate-500 text-center">לא נמצאו קורסים מתאימים</div>)}
+                </div>
               )}
             </div>
 
-            <hr className="border-slate-100 dark:border-slate-700 mb-6 transition-colors" />
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                <Bell className="w-4 h-4 text-orange-500" /> סנכרון ליומן
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">הרשמה לעדכונים אוטומטיים של הקורסים הנבחרים באפליקציית היומן שלך.</p>
-              <button 
-                onClick={handleSync}
-                disabled={syncing || myCourses.length === 0 || !!fetchError}
-                className="w-full flex justify-center items-center gap-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {syncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-                {syncing ? 'מייצר קישור...' : 'העתקת קישור ליומן'}
-              </button>
-              {syncMessage && (
-                <p className={`text-xs text-center mt-2 font-medium ${syncMessage.includes('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
-                  {syncMessage}
-                </p>
-              )}
+            <div className="space-y-2 max-h-64 overflow-y-auto pe-2">
+              {myCourses.map(code => {
+                const courseTheme = getCourseTheme(code);
+                return (
+                  <div key={code} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors group">
+                    <label className="flex items-start gap-3 cursor-pointer flex-1">
+                      <input type="checkbox" checked={visibleCourses.includes(code)} onChange={() => toggleVisibleCourse(code)} className="w-4 h-4 mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-blue-600 focus:ring-blue-500 dark:focus:ring-offset-slate-800" />
+                      <div className="flex flex-col flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${courseTheme.dot}`}></div>
+                          <span className="text-sm font-bold text-slate-700 dark:text-slate-200 line-clamp-1">{coursesMap[code]?.name || 'קורס לא ידוע'}</span>
+                        </div>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 me-4 text-start" dir="ltr">{code}</span>
+                      </div>
+                    </label>
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      {token && (<button onClick={(e) => { e.preventDefault(); openCourseSettings(code); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-all" title="הגדרות קורס"><Settings className="w-4 h-4" /></button>)}
+                      <button onClick={(e) => { e.preventDefault(); handleRemoveCourse(code); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-all focus:opacity-100" title="הסרת קורס לצמיתות"><X className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </aside>
 
-        {/* Main Content: Assignments Board */}
-        <div className="flex-1">
-          
-          {/* Type Filters */}
+        {/* Main Content */}
+        <div className="flex-1 relative z-10 flex flex-col min-h-full">
           <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-            <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400">
-              <Filter className="w-4 h-4" />
-              <span className="text-sm font-semibold">סינון:</span>
-            </div>
-            {assignmentTypes.map(type => (
-              <button
-                key={type}
-                onClick={() => setActiveTypeFilter(type)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                  activeTypeFilter === type 
-                    ? 'bg-slate-800 dark:bg-blue-600 text-white shadow-sm' 
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-                }`}
-              >
-                {typeTranslations[type]}
-              </button>
-            ))}
+            <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400"><Filter className="w-4 h-4" /><span className="text-sm font-semibold">סינון:</span></div>
+            {assignmentTypes.map(type => (<button key={type} onClick={() => setActiveTypeFilter(type)} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${ activeTypeFilter === type ? 'bg-slate-800 dark:bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700' }`}>{typeTranslations[type]}</button>))}
           </div>
 
-          {loading ? (
-             <div className="flex justify-center items-center h-40">
-               <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
-             </div>
-          ) : fetchError ? (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-8 text-center transition-colors">
-              <AlertCircle className="w-12 h-12 text-red-400 dark:text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-red-900 dark:text-red-200 mb-1">שגיאת תקשורת</h3>
-              <p className="text-red-700 dark:text-red-300 text-sm max-w-md mx-auto">{fetchError}</p>
-            </div>
-          ) : filteredAssignments.length === 0 ? (
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl p-12 text-center transition-colors">
-              <CheckCircle2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-50 mb-1">לא נמצאו מטלות!</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">
-                {activeTypeFilter !== 'All' 
-                  ? `אין מטלות מסוג "${typeTranslations[activeTypeFilter]}" לקורסים הנבחרים.`
-                  : "הכל מעודכן עבור הקורסים הנבחרים, או שטרם הוספו מטלות ללוח."}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {loading ? ( <div className="flex justify-center items-center h-40"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div> ) 
+          : fetchError ? ( <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-8 text-center transition-colors"><AlertCircle className="w-12 h-12 text-red-400 dark:text-red-500 mx-auto mb-4" /><h3 className="text-lg font-medium text-red-900 dark:text-red-200 mb-1">שגיאת תקשורת</h3><p className="text-red-700 dark:text-red-300 text-sm max-w-md mx-auto">{fetchError}</p></div> ) 
+          : filteredAssignments.length === 0 ? ( <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl p-12 text-center transition-colors"><CheckCircle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" /><h3 className="text-lg font-medium text-slate-900 dark:text-slate-50 mb-1">לא נמצאו מטלות לקורסים המסומנים!</h3></div> ) 
+          : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 content-start">
               {filteredAssignments.map((assignment) => {
-                const theme = getCourseTheme(assignment.courseCode);
-                const isCompleted = completedTasks.includes(assignment.id);
-                
+                const courseTheme = getCourseTheme(assignment.courseCode);
                 return (
-                  <div 
-                    key={assignment.id} 
-                    className={`relative p-5 rounded-xl border-s-4 shadow-sm transition-all duration-300 group ${getCardClasses(assignment.deadline, theme, isCompleted)}`}
-                  >
-                    {/* Actions (Edit/Delete) overlay */}
-                    <div className="absolute top-4 end-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => openEditModal(assignment)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        title="עריכה"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(assignment.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 rounded-md transition-colors"
-                        title="מחיקה"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  <div key={assignment.id} className={`relative p-5 rounded-xl border-s-4 shadow-sm group flex flex-col justify-between ${getCardClasses(assignment.deadline, courseTheme, assignment.isCompleted)}`}>
+                    {token && (
+                      <div className="absolute top-4 end-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEditModal(assignment)} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-md transition-colors" title="עריכה"><Edit className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(assignment.id)} className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 rounded-md transition-colors" title="מחיקה"><Trash className="w-4 h-4" /></button>
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-3 pe-16">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md border ${assignment.isCompleted ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600' : `${courseTheme.badgeBg} ${courseTheme.badgeText} ${courseTheme.badgeBorder}`}`} dir="ltr">
+                          <Book className="w-3 h-3" /> {assignment.courseCode}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-sm">
+                          <Tag className="w-3 h-3" /> {typeTranslations[assignment.type]}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-start gap-3 mb-1">
+                        <button onClick={() => toggleCompletion(assignment.id)} className="shrink-0 text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 mt-0.5" title={assignment.isCompleted ? "סומן כהושלם (לחץ לביטול)" : "סמן כהושלם"}>
+                          {assignment.isCompleted ? <CheckCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> : <Circle className="w-5 h-5" />}
+                        </button>
+                        <h3 className={`text-lg font-bold ${assignment.isCompleted ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-slate-50'}`}>{assignment.title}</h3>
+                      </div>
+                      <p className={`text-xs mb-4 ms-8 ${assignment.isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>{coursesMap[assignment.courseCode]?.name}</p>
+                      
+                      <div className={`flex items-center justify-between ms-8 ${assignment.isCompleted ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                        <div className="flex items-center gap-2 text-sm font-medium"><Clock className="w-4.5 h-4.5" /> <span>{formatDateTime(assignment.deadline)}</span></div>
+                        
+                        {/* ✨ NEW: Grade Input */}
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 shadow-sm">
+                          <span className="text-[10px] font-bold uppercase text-slate-400">ציון</span>
+                          <input type="number" min="0" max="100" placeholder="--" className="w-8 text-sm bg-transparent text-center font-bold outline-none text-slate-800 dark:text-slate-100" value={assignment.grade ?? ''} onChange={(e) => handleGradeUpdate(assignment.id, e.target.value)} />
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mb-3 pe-16">
-                      {/* Dynamic Course Badge */}
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-md border ${isCompleted ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600' : `${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`}`} dir="ltr">
-                        <BookType className="w-3 h-3" />
-                        {assignment.courseCode}
-                      </span>
-                      
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border ${isCompleted ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600' : getTypeBadgeStyles(assignment.type)}`}>
-                        <Tag className="w-3 h-3" />
-                        {typeTranslations[assignment.type]}
-                      </span>
-                      
-                      {assignment.isOptional && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold rounded-md border border-slate-200 dark:border-slate-700">
-                          תאריך אופציונלי
-                        </span>
-                      )}
-                      
-                      {!isCompleted && (new Date(assignment.deadline).getTime() - new Date().getTime()) < 86400000 * 2 && (new Date(assignment.deadline).getTime() > new Date().getTime()) && (
-                         <span className="flex items-center gap-1 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-md">
-                           <AlertCircle className="w-3 h-3" /> מועד קרוב
-                         </span>
-                      )}
-                    </div>
-                    
-                    {/* Checkbox and Title Row */}
-                    <div className="flex items-start gap-3 mb-1">
-                      <button 
-                        onClick={() => toggleCompletion(assignment.id)}
-                        className="shrink-0 text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors mt-0.5"
-                        title={isCompleted ? "סומן כהושלם (לחץ לביטול)" : "סמן כהושלם"}
-                      >
-                        {isCompleted ? <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> : <Circle className="w-5 h-5" />}
-                      </button>
-                      <h3 className={`text-lg font-bold leading-tight ${isCompleted ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-50'}`}>
-                        {assignment.title}
-                      </h3>
-                    </div>
-                    
-                    <p className={`text-xs mb-4 ms-8 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>
-                      {coursesMap[assignment.courseCode]}
-                    </p>
-                    
-                    <div className={`flex items-center gap-2 text-sm font-medium ms-8 ${isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                      <Clock className="w-4.5 h-4.5 text-slate-400" />
-                      <span>{formatDateTime(assignment.deadline)}</span>
+                    <div className="mt-4 ms-8 border-t border-slate-200 dark:border-slate-700/50 pt-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold flex items-center gap-1 text-slate-500 dark:text-slate-400"><Paperclip className="w-3 h-3" /> קבצים ({assignment.attachments?.length || 0})</span>
+                        {token && (
+                          <div className="flex items-center gap-3">
+                            <label className={`text-xs flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer ${uploadingId === assignment.id ? 'opacity-50 pointer-events-none' : ''}`}><input type="file" className="hidden" onChange={(e) => handleFileUpload(assignment.id, e, 'assignment')} disabled={uploadingId === assignment.id} /><Upload className="w-3 h-3" /> מטלה</label>
+                            <label className={`text-xs flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 cursor-pointer ${uploadingId === assignment.id ? 'opacity-50 pointer-events-none' : ''}`}><input type="file" className="hidden" onChange={(e) => handleFileUpload(assignment.id, e, 'solution')} disabled={uploadingId === assignment.id} /><Upload className="w-3 h-3" /> פתרון</label>
+                            {uploadingId === assignment.id && <RefreshCw className="w-3 h-3 animate-spin text-slate-400" />}
+                          </div>
+                        )}
+                      </div>
+                      {(assignment.attachments?.filter(a => a.category === 'assignment').length || 0) > 0 && (<div className="mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 block">קובצי מטלה</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'assignment').map(att => renderAttachment(att, assignment.id))}</div></div>)}
+                      {(assignment.attachments?.filter(a => a.category === 'solution').length || 0) > 0 && (<div><span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-600 uppercase mb-1.5 flex items-center gap-1"><Lightbulb className="w-3 h-3" /> פתרונות ועזרים</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'solution').map(att => renderAttachment(att, assignment.id))}</div></div>)}
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
+
+          {/* ✨ GRADING DASHBOARD FOOTER WIDGET */}
+          {visibleCourses.length > 0 && assignments.some(a => a.grade !== null) && (
+            <div className="mt-12 border-t border-slate-200 dark:border-slate-700 pt-8 mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-slate-500" /> מצב ציונים (מצטבר)</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {visibleCourses.map(code => {
+                  const projected = calculateCourseGrade(code);
+                  if (!projected) return null;
+                  const theme = getCourseTheme(code);
+                  return (
+                    <div key={`grade-${code}`} className={`p-4 rounded-xl border ${theme.badgeBg} ${theme.badgeBorder} shadow-sm`}>
+                       <div className="flex justify-between items-start mb-3">
+                         <div className="flex flex-col">
+                           <span className={`font-bold ${theme.badgeText} text-sm line-clamp-1`}>{coursesMap[code]?.name}</span>
+                           <span className={`text-xs ${theme.badgeText} opacity-70`} dir="ltr">{code}</span>
+                         </div>
+                         <div className="flex gap-1">
+                           {projected.unconfigured && <span title="יש להגדיר משקלים בהגדרות הקורס לחישוב הציון האמיתי" className="cursor-help"><AlertCircle className={`w-4 h-4 mt-0.5 shrink-0 text-orange-500`} /></span>}
+                           {projected.isMagen && <span title="ציון מגן פעיל"><Shield className={`w-4 h-4 mt-0.5 shrink-0 ${theme.badgeText}`} /></span>}
+                         </div>
+                       </div>
+                       <div className="flex items-baseline gap-1.5" dir="ltr">
+                         <span className={`text-3xl font-black leading-none ${theme.badgeText}`}>{projected.earned}</span>
+                         <span className={`text-lg font-medium leading-none ${theme.badgeText} opacity-60 mb-0.5`}>/ {projected.possible}</span>
+                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Add / Edit Modal */}
-      {isModalOpen && (
+      {/* Assignment Edit Modal */}
+      {isModalOpen && token && (
         <div className="fixed inset-0 bg-slate-900/50 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-100 dark:border-slate-700">
-            <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                {isEditing ? 'עריכת מטלה' : 'הוספת מטלה חדשה'}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">&times;</button>
-            </div>
-            
+            <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center"><h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">{isEditing ? 'עריכת מטלה' : 'הוספת מטלה חדשה'}</h2><button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">מספר קורס</label>
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="עד 7 ספרות"
-                    dir="ltr"
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-end"
-                    value={formData.courseCode}
-                    onChange={handleCourseCodeChange}
-                  />
-                </div>
-                
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">סוג המטלה</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
-                    value={formData.type}
-                    onChange={e => setFormData({...formData, type: e.target.value})}
-                  >
-                    <option value="Assignment">גיליון</option>
-                    <option value="Webwork">וובוורק</option>
-                    <option value="Exam">מבחן</option>
-                  </select>
-                </div>
+                <div className="col-span-2 sm:col-span-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">מספר קורס</label><input required type="text" placeholder="עד 7 ספרות" dir="ltr" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-end" value={formData.courseCode} onChange={e => setFormData({ ...formData, courseCode: e.target.value.replace(/\D/g, '').slice(0, 7), courseName: coursesMap[e.target.value.replace(/\D/g, '').slice(0, 7)]?.name || formData.courseName })} /></div>
+                <div className="col-span-2 sm:col-span-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">סוג המטלה</label><select className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}><option value="Assignment">גיליון</option><option value="Webwork">וובוורק</option><option value="Exam">מבחן</option></select></div>
               </div>
-
+              
+              {/* ✨ RESTORED: Course Name Field logic */}
               {formData.courseCode.length > 0 && (
                 <div className="animate-in slide-in-from-top-2 duration-300">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    שם הקורס {coursesMap[formData.courseCode] ? '(מילוי אוטומטי)' : '(קורס חדש)'}
-                  </label>
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="לדוגמה: פיזיקה 1פ"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${
-                      coursesMap[formData.courseCode] 
-                        ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400' 
-                        : 'bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700 text-slate-800 dark:text-slate-100'
-                    }`}
-                    value={formData.courseName}
-                    readOnly={!!coursesMap[formData.courseCode]}
-                    onChange={e => setFormData({...formData, courseName: e.target.value})}
-                  />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שם הקורס {coursesMap[formData.courseCode] ? '(מילוי אוטומטי)' : '(קורס חדש)'}</label>
+                  <input required type="text" placeholder="לדוגמה: פיזיקה 1פ" className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${coursesMap[formData.courseCode] ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400' : 'bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700 text-slate-800 dark:text-slate-100'}`} value={formData.courseName} readOnly={!!coursesMap[formData.courseCode]} onChange={e => setFormData({...formData, courseName: e.target.value})} />
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">כותרת</label>
-                <input 
-                  required
-                  type="text" 
-                  placeholder="לדוגמה: עבודת אמצע"
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
-                  value={formData.title}
-                  onChange={e => setFormData({...formData, title: e.target.value})}
-                />
-              </div>
-
+              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">כותרת</label><input required type="text" placeholder="לדוגמה: גיליון 1, בוחן אמצע" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">תאריך הגשה</label>
-                  <input 
-                    required
-                    type="date" 
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
-                    value={formData.deadline}
-                    onChange={e => setFormData({...formData, deadline: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שעה (רשות)</label>
-                  <input 
-                    type="time" 
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
-                    value={formData.time}
-                    onChange={e => setFormData({...formData, time: e.target.value})}
-                  />
-                </div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">תאריך הגשה</label><input required type="date" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} /></div>
+                <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שעה (רשות)</label><input type="time" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} /></div>
               </div>
+              <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors">ביטול</button><button type="submit" className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">{isEditing ? 'שמירת שינויים' : 'הוספה ללוח'}</button></div>
+            </form>
+          </div>
+        </div>
+      )}
 
-              <div className="flex items-center gap-2 mt-2">
-                <input 
-                  type="checkbox" 
-                  id="isOptional"
-                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-blue-600 focus:ring-blue-500 dark:focus:ring-offset-slate-800 cursor-pointer"
-                  checked={formData.isOptional}
-                  onChange={e => setFormData({...formData, isOptional: e.target.checked})}
-                />
-                <label htmlFor="isOptional" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                  תאריך אופציונלי
+      {/* ✨ NEW: Course Syllabus Settings Modal */}
+      {isCourseModalOpen && token && (
+        <div className="fixed inset-0 bg-slate-900/50 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-100 dark:border-slate-700">
+            <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center"><h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><Settings className="w-5 h-5 text-slate-500" /> הגדרות סילבוס: {editingCourseCode}</h2><button onClick={() => setIsCourseModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>
+            <form onSubmit={handleSaveCourseSettings} className="p-6 space-y-4">
+              <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שם הקורס</label><input required type="text" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={courseFormData.name} onChange={e => setCourseFormData({...courseFormData, name: e.target.value})} /></div>
+              
+              {/* ✨ MODAL LAYOUT: Checkboxes inline with Categories */}
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-3 border-t border-slate-100 dark:border-slate-700 pt-4 items-end">
+                <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">משקל גיליונות (%)</label><input type="number" min="0" max="100" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={courseFormData.hw_weight} onChange={e => setCourseFormData({...courseFormData, hw_weight: parseInt(e.target.value)||0})} /></div>
+                <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">מספר גיליונות תקפים</label><input type="number" min="0" max="20" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={courseFormData.hw_keep} onChange={e => setCourseFormData({...courseFormData, hw_keep: parseInt(e.target.value)||0})} /></div>
+                <label className="flex items-center gap-1.5 cursor-pointer pb-2 text-xs font-medium text-slate-700 dark:text-slate-300 w-16">
+                  <input type="checkbox" checked={courseFormData.hw_magen} onChange={e => setCourseFormData({...courseFormData, hw_magen: e.target.checked})} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500" /> מגן
                 </label>
               </div>
 
-              <div className="pt-4 flex gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors"
-                >
-                  ביטול
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  {isEditing ? 'שמירת שינויים' : 'הוספה ללוח'}
-                </button>
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">משקל וובוורק (%)</label><input type="number" min="0" max="100" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={courseFormData.ww_weight} onChange={e => setCourseFormData({...courseFormData, ww_weight: parseInt(e.target.value)||0})} /></div>
+                <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">מספר וובוורקים תקפים</label><input type="number" min="0" max="20" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={courseFormData.ww_keep} onChange={e => setCourseFormData({...courseFormData, ww_keep: parseInt(e.target.value)||0})} /></div>
+                <label className="flex items-center gap-1.5 cursor-pointer pb-2 text-xs font-medium text-slate-700 dark:text-slate-300 w-16">
+                  <input type="checkbox" checked={courseFormData.ww_magen} onChange={e => setCourseFormData({...courseFormData, ww_magen: e.target.checked})} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500" /> מגן
+                </label>
               </div>
+
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-3 border-t border-slate-100 dark:border-slate-700 pt-4 items-end">
+                 <div><label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">משקל בוחן אמצע (%)</label><input type="number" min="0" max="100" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={courseFormData.exam_weight} onChange={e => setCourseFormData({...courseFormData, exam_weight: parseInt(e.target.value)||0})} /></div>
+                 <div></div>
+                 <label className="flex items-center gap-1.5 cursor-pointer pb-2 text-xs font-medium text-slate-700 dark:text-slate-300 w-16">
+                  <input type="checkbox" checked={courseFormData.exam_magen} onChange={e => setCourseFormData({...courseFormData, exam_magen: e.target.checked})} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500" /> מגן
+                </label>
+              </div>
+
+              <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsCourseModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors">ביטול</button><button type="submit" className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">שמירת סילבוס</button></div>
             </form>
           </div>
         </div>
