@@ -81,6 +81,7 @@ export default function App() {
   const [visibleCourses, setVisibleCourses] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isCalendarCopied, setIsCalendarCopied] = useState(false);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { 
     if (typeof window !== 'undefined') return localStorage.getItem('theme') as 'light' | 'dark' || 'light'; 
@@ -309,36 +310,27 @@ export default function App() {
     return { earned: totalEarned.toFixed(1), possible: totalPossible.toFixed(1), isMagen: isMagenActive, unconfigured: false };
   };
 
-  // --- Calendar Sync ---
-  const exportToCalendar = () => {
-    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Teaspoon//IL\n";
+  // --- Dynamic Calendar Sync ---
+  const handleCalendarSync = () => {
+    let calendarUrl = '';
     
-    filteredAssignments.forEach(a => {
-      if (!a.deadline) return;
-      const d = new Date(a.deadline);
-      const pad = (n: number) => n < 10 ? '0' + n : n;
-      const fmt = (date: Date) => `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
-      
-      icsContent += "BEGIN:VEVENT\n";
-      icsContent += `UID:${a.id}@teaspoon\n`;
-      icsContent += `DTSTAMP:${fmt(new Date())}\n`;
-      icsContent += `DTSTART:${fmt(d)}\n`;
-      icsContent += `DTEND:${fmt(d)}\n`;
-      icsContent += `SUMMARY:${a.courseCode} - ${a.title}\n`;
-      // Optional: Add a description or reminder
-      icsContent += `DESCRIPTION:${typeTranslations[a.type]} בקורס ${coursesMap[a.courseCode]?.name || a.courseCode}\n`;
-      icsContent += "END:VEVENT\n";
+    if (token) {
+      // Logged in: Sync via secure user token
+      calendarUrl = `${API_BASE_URL}/calendar/feed?token=${token}`;
+    } else if (visibleCourses.length > 0) {
+      // Guest mode: Sync specific course list via URL params
+      calendarUrl = `${API_BASE_URL}/calendar/feed?courses=${visibleCourses.join(',')}`;
+    } else {
+      alert("אין קורסים מסומנים לסנכרון.");
+      return;
+    }
+    
+    navigator.clipboard.writeText(calendarUrl).then(() => {
+      setIsCalendarCopied(true);
+      setTimeout(() => setIsCalendarCopied(false), 2000);
+    }).catch(err => {
+      alert("שגיאה בהעתקת הקישור ליומן. אנא נסה שוב.");
     });
-    
-    icsContent += "END:VCALENDAR";
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', 'teaspoon_assignments.ics');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   // --- MinIO ---
@@ -421,6 +413,20 @@ export default function App() {
           
           <div className="flex items-center gap-3">
             <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"><Moon className="w-5 h-5 hidden dark:block" /><Sun className="w-5 h-5 block dark:hidden" /></button>
+            
+            {/* DYNAMIC CALENDAR BUTTON: Accessible to everyone */}
+            <button 
+              onClick={handleCalendarSync} 
+              className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm ${
+                isCalendarCopied 
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400' 
+                  : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200'
+              }`}
+            >
+              {isCalendarCopied ? <Check className="w-4 h-4" /> : <Calendar className="w-4 h-4" />} 
+              {isCalendarCopied ? 'הקישור הועתק!' : 'סנכרון ליומן'}
+            </button>
+
             {token ? (
               <>
                 <button onClick={() => { localStorage.removeItem('teaspoon_jwt'); setToken(null); setUserProfile(null); }} className="flex items-center gap-2 p-2 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium" title="התנתק"><User className="w-5 h-5" /> התנתק</button>
