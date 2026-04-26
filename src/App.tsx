@@ -189,7 +189,17 @@ export default function App() {
     if (token) fetch(`${API_BASE_URL}/users/me/courses`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(newCourses) });
     else localStorage.setItem('guest_courses', JSON.stringify(newCourses));
   };
-  const handleAddCourse = (code: string) => { if (!myCourses.includes(code)) { const updated = [...myCourses, code]; setMyCourses(updated); setVisibleCourses(prev => [...prev, code]); syncCourses(updated); } setSearchQuery(''); setIsSearchFocused(false); };
+  const handleAddCourse = (code: string) => { 
+    if (!code.trim()) return;
+    if (!myCourses.includes(code)) { 
+      const updated = [...myCourses, code]; 
+      setMyCourses(updated); 
+      setVisibleCourses(prev => [...prev, code]); 
+      syncCourses(updated); 
+    } 
+    setSearchQuery(''); 
+    setIsSearchFocused(false); 
+  };
   const handleRemoveCourse = (code: string) => { const updated = myCourses.filter(c => c !== code); setMyCourses(updated); setVisibleCourses(prev => prev.filter(c => c !== code)); syncCourses(updated); };
   const toggleVisibleCourse = (code: string) => setVisibleCourses(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
 
@@ -236,7 +246,22 @@ export default function App() {
     }
   };
 
-  const openAddModal = () => { setIsEditing(false); setCurrentEditId(null); setFormData({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false }); setIsModalOpen(true); };
+  const openAddModal = () => { 
+    setIsEditing(false); 
+    setCurrentEditId(null); 
+    const defaultCourse = myCourses.length > 0 ? myCourses[0] : '';
+    setFormData({ 
+      title: '', 
+      courseCode: defaultCourse, 
+      courseName: coursesMap[defaultCourse]?.name || '', 
+      type: 'Assignment', 
+      deadline: '', 
+      time: '', 
+      isOptional: false 
+    }); 
+    setIsModalOpen(true); 
+  };
+
   const openEditModal = (assignment: Assignment) => {
     const d = new Date(assignment.deadline); setIsEditing(true); setCurrentEditId(assignment.id);
     setFormData({ title: assignment.title, courseCode: assignment.courseCode, courseName: coursesMap[assignment.courseCode]?.name || '', type: assignment.type, isOptional: assignment.isOptional || false, deadline: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` });
@@ -315,10 +340,8 @@ export default function App() {
     let calendarUrl = '';
     
     if (token) {
-      // Logged in: Sync via secure user token
       calendarUrl = `${API_BASE_URL}/calendar/feed?token=${token}`;
     } else if (visibleCourses.length > 0) {
-      // Guest mode: Sync specific course list via URL params
       calendarUrl = `${API_BASE_URL}/calendar/feed?courses=${visibleCourses.join(',')}`;
     } else {
       alert("אין קורסים מסומנים לסנכרון.");
@@ -400,8 +423,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans pb-12 transition-colors duration-200" dir="rtl">
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-colors duration-200">
+      {/* Header - relative on mobile, sticky top-0 on desktop (md) */}
+      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 relative md:sticky top-0 z-40 transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between">
           <div className="flex items-center gap-3 mb-4 sm:mb-0">
             <div className="bg-slate-900 dark:bg-slate-700 p-2 rounded-lg"><Calendar className="w-6 h-6 text-white" /></div>
@@ -414,7 +437,6 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"><Moon className="w-5 h-5 hidden dark:block" /><Sun className="w-5 h-5 block dark:hidden" /></button>
             
-            {/* DYNAMIC CALENDAR BUTTON: Accessible to everyone */}
             <button 
               onClick={handleCalendarSync} 
               className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm ${
@@ -439,27 +461,41 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
-        <aside className="w-full md:w-72 flex flex-col gap-6 shrink-0 relative">
-          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors relative z-20">
-            <h2 className="font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2"><BookOpen className="w-5 h-5 text-slate-700 dark:text-slate-300" /> הקורסים שלי</h2>
-            <div className="relative mb-6">
+      <main className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8 items-start">
+        {/* Right Menu - Flexes top to bottom and stays sticky on desktop */}
+        <aside className="w-full md:w-72 flex flex-col gap-6 shrink-0 md:sticky md:top-24 md:h-[calc(100vh-7rem)] z-30">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors flex-1 flex flex-col overflow-hidden relative">
+            <h2 className="font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2 shrink-0"><BookOpen className="w-5 h-5 text-slate-700 dark:text-slate-300" /> הקורסים שלי</h2>
+            <div className="relative mb-6 shrink-0">
               <div className="relative">
                 <input type="text" placeholder="חיפוש קורס..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setIsSearchFocused(true)} onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)} className="w-full pl-4 pr-10 py-2 border rounded-lg bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors dark:text-slate-100" />
                 <Search className="w-4 h-4 absolute right-3 top-2.5 text-slate-400" />
               </div>
+              
               {isSearchFocused && searchQuery && (
-                <div className="absolute z-30 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                  {searchResults.length > 0 ? searchResults.map(([code, syl]) => (
+                <div className="absolute z-30 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto flex flex-col">
+                  {searchResults.length > 0 && searchResults.map(([code, syl]) => (
                     <button key={code} onClick={() => handleAddCourse(code)} className="w-full text-right px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 flex flex-col items-start border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors">
                       <div className="flex justify-between items-center w-full"><span className="text-sm font-bold text-slate-800 dark:text-slate-100">{syl.name}</span>{myCourses.includes(code) && <CheckCircle className="w-4 h-4 text-emerald-500" />}</div>
                       <span className="text-xs text-slate-500">{code}</span>
                     </button>
-                  )) : (<div className="px-4 py-3 text-sm text-slate-500 text-center">לא נמצאו קורסים</div>)}
+                  ))}
+                  
+                  {/* Smart Add Course Option below results */}
+                  {searchQuery && !myCourses.includes(searchQuery) && (
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); handleAddCourse(searchQuery); }} 
+                      className="w-full text-right px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 text-blue-600 dark:text-blue-400 transition-colors mt-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm font-bold">הוסף קורס: {searchQuery}</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
-            <div className="space-y-2 max-h-64 overflow-y-auto pe-2">
+            
+            <div className="space-y-2 flex-1 overflow-y-auto pe-2 scrollbar-thin">
               {myCourses.map(code => {
                 const courseTheme = getCourseTheme(code);
                 return (
@@ -469,7 +505,7 @@ export default function App() {
                       <div className="flex flex-col flex-1">
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${courseTheme.dot}`}></div>
-                          <span className="text-sm font-bold text-slate-700 dark:text-slate-200 line-clamp-1">{coursesMap[code]?.name || 'קורס לא ידוע'}</span>
+                          <span className="text-sm font-bold text-slate-700 dark:text-slate-200 line-clamp-1">{coursesMap[code]?.name || 'קורס מותאם'}</span>
                         </div>
                         <span className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 me-4 text-start" dir="ltr">{code}</span>
                       </div>
@@ -522,7 +558,7 @@ export default function App() {
                         </button>
                         <h3 className={`text-lg font-bold ${assignment.isCompleted ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-slate-50'}`}>{assignment.title}</h3>
                       </div>
-                      <p className={`text-xs mb-4 ms-8 ${assignment.isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>{coursesMap[assignment.courseCode]?.name}</p>
+                      <p className={`text-xs mb-4 ms-8 ${assignment.isCompleted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>{coursesMap[assignment.courseCode]?.name || 'קורס מותאם'}</p>
                       
                       <div className={`flex items-center justify-between ms-8 ${assignment.isCompleted ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
                         <div className="flex items-center gap-2 text-sm font-medium"><Clock className="w-4 h-4" /> <span>{formatDateTime(assignment.deadline)}</span></div>
@@ -565,7 +601,7 @@ export default function App() {
                     <div key={`grade-${code}`} className={`p-4 rounded-xl border ${themeObj.badgeBg} ${themeObj.badgeBorder} shadow-sm`}>
                        <div className="flex justify-between items-start mb-3">
                          <div className="flex flex-col">
-                           <span className={`font-bold ${themeObj.badgeText} text-sm line-clamp-1`}>{coursesMap[code]?.name}</span>
+                           <span className={`font-bold ${themeObj.badgeText} text-sm line-clamp-1`}>{coursesMap[code]?.name || 'קורס מותאם'}</span>
                            <span className={`text-xs ${themeObj.badgeText} opacity-70`} dir="ltr">{code}</span>
                          </div>
                          <div className="flex gap-1">
@@ -593,7 +629,23 @@ export default function App() {
             <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center"><h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">{isEditing ? 'עריכת מטלה' : 'הוספת מטלה חדשה'}</h2><button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 sm:col-span-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">מספר קורס</label><input required type="text" placeholder="עד 7 ספרות" dir="ltr" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-end" value={formData.courseCode} onChange={e => setFormData({ ...formData, courseCode: e.target.value.replace(/\D/g, '').slice(0, 7), courseName: coursesMap[e.target.value.replace(/\D/g, '').slice(0, 7)]?.name || formData.courseName })} /></div>
+                
+                {/* NEW COURSE DROPDOWN */}
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">קורס</label>
+                  <select 
+                    required 
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-right appearance-none" 
+                    value={formData.courseCode} 
+                    onChange={e => setFormData({ ...formData, courseCode: e.target.value, courseName: coursesMap[e.target.value]?.name || formData.courseName })}
+                  >
+                    <option value="" disabled>{myCourses.length === 0 ? 'אנא הוסף קורסים תחילה' : 'בחר קורס...'}</option>
+                    {myCourses.map(code => (
+                      <option key={code} value={code}>{code} - {coursesMap[code]?.name || 'קורס מותאם'}</option>
+                    ))}
+                  </select>
+                </div>
+                
                 <div className="col-span-2 sm:col-span-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">סוג המטלה</label><select className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}><option value="Assignment">גיליון</option><option value="Webwork">וובוורק</option><option value="Exam">מבחן</option></select></div>
               </div>
               
