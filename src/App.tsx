@@ -636,10 +636,11 @@ export default function App() {
                   <select 
                     required 
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-right appearance-none" 
-                    value={myCourses.length === 0 ? 'יש להוסיף קורסים תחילה' : 'בחר קורס...'}
+                    value={formData.courseCode} 
+                    defaultValue={myCourses.length === 0 ? 'יש הוסף קורסים תחילה' : 'בחר קורס...'}
                     onChange={e => setFormData({ ...formData, courseCode: e.target.value, courseName: coursesMap[e.target.value]?.name || formData.courseName })}
                   >
-                    <option value="" disabled>{myCourses.length === 0 ? 'יש להוסיף קורסים תחילה' : 'בחר קורס...'}</option>
+                    <option value="" disabled>{myCourses.length === 0 ? 'יש הוסף קורסים תחילה' : 'בחר קורס...'}</option>
                     {myCourses.map(code => (
                       <option key={code} value={code}>{code} - {coursesMap[code]?.name || 'קורס מותאם'}</option>
                     ))}
