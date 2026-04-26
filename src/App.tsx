@@ -674,7 +674,7 @@ export default function App() {
               e.preventDefault();
               const codeRegex = /^\d{3}0\d{3}$/;
               if (!codeRegex.test(newCourseCode)) {
-                setCourseCodeError('קוד קורס חייב להיות בפורמט: XXX0XXX (לדוגמה: 394029003)');
+                setCourseCodeError('קוד קורס חייב להיות בפורמט: XXX0XXX (לדוגמה: 1150204)');
                 return;
               }
               if (!newCourseName.trim()) {
