@@ -249,11 +249,10 @@ export default function App() {
   const openAddModal = () => { 
     setIsEditing(false); 
     setCurrentEditId(null); 
-    const defaultCourse = myCourses.length > 0 ? myCourses[0] : '';
     setFormData({ 
       title: '', 
-      courseCode: defaultCourse, 
-      courseName: coursesMap[defaultCourse]?.name || '', 
+      courseCode: '', 
+      courseName: '', 
       type: 'Assignment', 
       deadline: '', 
       time: '', 
@@ -636,8 +635,7 @@ export default function App() {
                   <select 
                     required 
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-right appearance-none" 
-                    value={formData.courseCode} 
-                    defaultValue={myCourses.length === 0 ? 'יש הוסף קורסים תחילה' : 'בחר קורס...'}
+                    value={formData.courseCode}
                     onChange={e => setFormData({ ...formData, courseCode: e.target.value, courseName: coursesMap[e.target.value]?.name || formData.courseName })}
                   >
                     <option value="" disabled>{myCourses.length === 0 ? 'יש הוסף קורסים תחילה' : 'בחר קורס...'}</option>
@@ -649,13 +647,6 @@ export default function App() {
                 
                 <div className="col-span-2 sm:col-span-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">סוג המטלה</label><select className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}><option value="Assignment">גיליון</option><option value="Webwork">וובוורק</option><option value="Exam">מבחן</option></select></div>
               </div>
-              
-              {formData.courseCode.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שם הקורס {coursesMap[formData.courseCode] ? '(מילוי אוטומטי)' : '(קורס חדש)'}</label>
-                  <input required type="text" placeholder="לדוגמה: פיזיקה 1פ" className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${coursesMap[formData.courseCode] ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400' : 'bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700 text-slate-800 dark:text-slate-100'}`} value={formData.courseName} readOnly={!!coursesMap[formData.courseCode]} onChange={e => setFormData({...formData, courseName: e.target.value})} />
-                </div>
-              )}
 
               <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">כותרת</label><input required type="text" placeholder="לדוגמה: גיליון 1, בוחן אמצע" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-4">
