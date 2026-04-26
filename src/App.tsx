@@ -702,7 +702,7 @@ export default function App() {
                 <input
                   required
                   type="text"
-                  placeholder="לדוגמה: 394029003"
+                  placeholder="לדוגמה: 1150204"
                   maxLength={7}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100"
                   value={newCourseCode}
