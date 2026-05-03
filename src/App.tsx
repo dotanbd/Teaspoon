@@ -3,7 +3,7 @@ import {
   BookOpen, Calendar, Clock, Plus, CheckCircle, RefreshCw, 
   AlertCircle, Edit, Trash, Tag, Filter, Circle, Sun, Moon, 
   LogIn, User, Search, X, Check, Paperclip, FileText, Upload, 
-  XCircle, Lightbulb, Calculator, Shield, Settings 
+  XCircle, Lightbulb, Calculator, Shield, Settings, ChevronDown 
 } from 'lucide-react';
 
 // --- Production API Configuration ---
@@ -185,6 +185,14 @@ export default function App() {
     return 'light'; 
   });
 
+  const [hideCompleted, setHideCompleted] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('teaspoon_hide_completed') === 'true';
+    return false;
+  });
+
+  const [dateRange, setDateRange] = useState<{start: string, end: string}>({ start: '', end: '' });
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTypeFilter, setActiveTypeFilter] = useState<string>('All');
@@ -235,6 +243,12 @@ export default function App() {
       localStorage.setItem('theme', theme);
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('teaspoon_hide_completed', String(hideCompleted));
+    }
+  }, [hideCompleted]);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true); setFetchError(null);
@@ -484,7 +498,27 @@ export default function App() {
   };
 
   const searchResults = Object.entries(coursesMap).filter(([code, syl]) => { if (!searchQuery) return false; return code.includes(searchQuery) || (syl.name && syl.name.toLowerCase().includes(searchQuery.toLowerCase())); }).slice(0, 5);
-  const filteredAssignments = assignments.filter(a => visibleCourses.includes(a.courseCode) && (activeTypeFilter === 'All' || a.type === activeTypeFilter));
+  
+  const filteredAssignments = assignments.filter(a => {
+    if (!visibleCourses.includes(a.courseCode)) return false;
+    if (activeTypeFilter !== 'All' && a.type !== activeTypeFilter) return false;
+    if (hideCompleted && a.isCompleted) return false;
+    
+    if (dateRange.start || dateRange.end) {
+      const assignmentDate = new Date(a.deadline).getTime();
+      if (dateRange.start) {
+        const start = new Date(dateRange.start);
+        start.setHours(0, 0, 0, 0);
+        if (assignmentDate < start.getTime()) return false;
+      }
+      if (dateRange.end) {
+        const end = new Date(dateRange.end);
+        end.setHours(23, 59, 59, 999);
+        if (assignmentDate > end.getTime()) return false;
+      }
+    }
+    return true;
+  });
 
   const formatDateTime = (isoString: string) => {
     const date = new Date(isoString); const today = new Date(); const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -625,14 +659,106 @@ export default function App() {
         </aside>
 
         <div className="flex-1 relative z-10 flex flex-col min-h-full">
-          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-            <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400"><Filter className="w-4 h-4" /><span className="text-sm font-semibold">סינון:</span></div>
-            {assignmentTypes.map(type => (<button key={type} onClick={() => setActiveTypeFilter(type)} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${ activeTypeFilter === type ? 'bg-slate-800 dark:bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700' }`}>{typeTranslations[type]}</button>))}
+          {/* ✨ Filter Row with Dropdowns */}
+          <div className="flex flex-wrap items-center gap-4 mb-6 relative z-20">
+            <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400">
+              <Filter className="w-4 h-4" />
+              <span className="text-sm font-semibold">סינון:</span>
+            </div>
+
+            {/* Type Filter */}
+            <div className="relative group">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                סוג: <span className="font-bold text-blue-600 dark:text-blue-400">{typeTranslations[activeTypeFilter]}</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform" />
+              </button>
+              <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden flex flex-col z-50">
+                {assignmentTypes.map(type => (
+                  <button 
+                    key={type} 
+                    onClick={() => setActiveTypeFilter(type)} 
+                    className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ activeTypeFilter === type ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
+                  >
+                    {typeTranslations[type]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative group">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                סטטוס: <span className="font-bold text-blue-600 dark:text-blue-400">{hideCompleted ? 'לא טופלו' : 'הכל'}</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform" />
+              </button>
+              <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden flex flex-col z-50">
+                <button 
+                  onClick={() => setHideCompleted(false)} 
+                  className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ !hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
+                >
+                  הכל
+                </button>
+                <button 
+                  onClick={() => setHideCompleted(true)} 
+                  className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
+                >
+                  לא טופלו
+                </button>
+              </div>
+            </div>
+
+            {/* Dates Filter */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsDateFilterOpen(!isDateFilterOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors shadow-sm ${ (dateRange.start || dateRange.end) ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700' }`}
+              >
+                <Calendar className={`w-4 h-4 ${ (dateRange.start || dateRange.end) ? 'text-blue-500' : 'text-slate-400' }`} />
+                תאריכים {(dateRange.start || dateRange.end) && '(פעיל)'}
+                <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${isDateFilterOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isDateFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsDateFilterOpen(false)}></div>
+                  <div className="absolute top-full right-0 mt-1 w-64 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 cursor-default">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">מתאריך:</label>
+                        <input 
+                          type="date" 
+                          value={dateRange.start} 
+                          onChange={e => setDateRange(prev => ({...prev, start: e.target.value}))} 
+                          className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">עד תאריך:</label>
+                        <input 
+                          type="date" 
+                          value={dateRange.end} 
+                          onChange={e => setDateRange(prev => ({...prev, end: e.target.value}))} 
+                          className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                      {(dateRange.start || dateRange.end) && (
+                        <button 
+                          onClick={() => setDateRange({start: '', end: ''})} 
+                          className="w-full text-center text-xs text-red-500 hover:text-red-600 dark:hover:text-red-400 font-semibold pt-2 border-t border-slate-100 dark:border-slate-700 mt-2 transition-colors"
+                        >
+                          נקה תאריכים
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {loading ? ( <div className="flex justify-center items-center h-40"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div> ) 
           : fetchError ? ( <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-8 text-center transition-colors"><AlertCircle className="w-12 h-12 text-red-400 dark:text-red-500 mx-auto mb-4" /><h3 className="text-lg font-medium text-red-900 dark:text-red-200 mb-1">שגיאת תקשורת</h3><p className="text-red-700 dark:text-red-300 text-sm max-w-md mx-auto">{fetchError}</p></div> ) 
-          : filteredAssignments.length === 0 ? ( <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl p-12 text-center transition-colors"><CheckCircle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" /><h3 className="text-lg font-medium text-slate-900 dark:text-slate-50 mb-1">אין מטלות</h3></div> ) 
+          : filteredAssignments.length === 0 ? ( <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-dashed rounded-xl p-12 text-center transition-colors"><CheckCircle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" /><h3 className="text-lg font-medium text-slate-900 dark:text-slate-50 mb-1">אין מטלות להצגה</h3></div> ) 
           : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 content-start">
               {filteredAssignments.map((assignment) => {
