@@ -3,7 +3,7 @@ import {
   BookOpen, Calendar, Clock, Plus, CheckCircle, RefreshCw, 
   AlertCircle, Edit, Trash, Tag, Filter, Circle, Sun, Moon, 
   LogIn, User, Search, X, Check, Paperclip, FileText, Upload, 
-  XCircle, Lightbulb, Calculator, Shield, Settings, ChevronDown 
+  XCircle, Lightbulb, Calculator, Shield, Settings, ChevronDown, Heart 
 } from 'lucide-react';
 
 // --- Production API Configuration ---
@@ -18,9 +18,36 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 
 // --- TypeScript Interfaces ---
-interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; }
-interface Assignment { id: number; title: string; courseCode: string; type: string; deadline: string; isOptional: boolean; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
-interface UserProfile { id: number; email: string; name: string; picture: string; role: string; }
+interface Attachment { 
+  id: number; 
+  filename: string; 
+  url: string; 
+  uploader_id: number; 
+  category: string; 
+  likes?: number; 
+  isLikedByMe?: boolean; 
+}
+
+interface Assignment { 
+  id: number; 
+  title: string; 
+  courseCode: string; 
+  type: string; 
+  deadline: string; 
+  isOptional: boolean; 
+  isCompleted: boolean; 
+  grade: number | null; 
+  attachments: Attachment[]; 
+}
+
+interface UserProfile { 
+  id: number; 
+  email: string; 
+  name: string; 
+  picture: string; 
+  role: string; 
+  totalLikesReceived?: number; 
+}
 
 interface CourseSyllabus { 
   name: string; 
@@ -383,10 +410,12 @@ export default function App() {
     setFormData({ title: assignment.title, courseCode: assignment.courseCode, courseName: coursesMap[assignment.courseCode]?.name || '', type: assignment.type, isOptional: assignment.isOptional || false, deadline: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` });
     setIsModalOpen(true);
   };
+  
   const handleDelete = async (id: number) => {
     if (!window.confirm("למחוק מטלה זו?")) return;
     try { await fetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }}); setAssignments(prev => prev.filter(a => a.id !== id)); } catch { alert("שגיאה במחיקה."); }
   };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); if (!token) return;
     const payload = { title: formData.title, courseCode: formData.courseCode, type: formData.type, deadline: new Date(`${formData.deadline}T${formData.time || '23:59'}:00`).toISOString(), isOptional: formData.isOptional };
@@ -451,28 +480,15 @@ export default function App() {
     return { earned: totalEarned.toFixed(1), possible: totalPossible.toFixed(1), isMagen: isMagenActive, unconfigured: false };
   };
 
-  // --- Dynamic Calendar Sync ---
   const handleCalendarSync = () => {
     let calendarUrl = '';
-    
-    if (token) {
-      calendarUrl = `${API_BASE_URL}/calendar/feed?token=${token}`;
-    } else if (visibleCourses.length > 0) {
-      calendarUrl = `${API_BASE_URL}/calendar/feed?courses=${visibleCourses.join(',')}`;
-    } else {
-      alert("אין קורסים מסומנים לסנכרון.");
-      return;
-    }
-    
-    navigator.clipboard.writeText(calendarUrl).then(() => {
-      setIsCalendarCopied(true);
-      setTimeout(() => setIsCalendarCopied(false), 2000);
-    }).catch(() => {
-      alert("שגיאה בהעתקת הקישור ליומן. אנא נסה שוב.");
-    });
+    if (token) { calendarUrl = `${API_BASE_URL}/calendar/feed?token=${token}`; } 
+    else if (visibleCourses.length > 0) { calendarUrl = `${API_BASE_URL}/calendar/feed?courses=${visibleCourses.join(',')}`; } 
+    else { alert("אין קורסים מסומנים לסנכרון."); return; }
+    navigator.clipboard.writeText(calendarUrl).then(() => { setIsCalendarCopied(true); setTimeout(() => setIsCalendarCopied(false), 2000); }).catch(() => { alert("שגיאה בהעתקת הקישור ליומן. אנא נסה שוב."); });
   };
 
-  // --- MinIO ---
+  // --- Attachments & Likes ---
   const handleFileUpload = async (assignmentId: number, e: React.ChangeEvent<HTMLInputElement>, category: string) => {
     if (!e.target.files || e.target.files.length === 0 || !token) return;
     const file = e.target.files[0]; const inputElement = e.target; setUploadingId(assignmentId);
@@ -482,6 +498,7 @@ export default function App() {
       await fetchAllData();
     } catch { alert("שגיאה בהעלאה."); } finally { setUploadingId(null); inputElement.value = ''; }
   };
+  
   const handleRenameAttachment = async (assignmentId: number, attachmentId: number) => {
     if (!token || !editFileName.trim()) return;
     const oldName = assignments.find(a => a.id === assignmentId)?.attachments.find(a => a.id === attachmentId)?.filename;
@@ -491,10 +508,48 @@ export default function App() {
     setEditingFileId(null);
     try { await fetch(`${API_BASE_URL}/attachments/${attachmentId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ filename: finalName }) }); } catch { fetchAllData(); }
   };
+  
   const handleDeleteAttachment = async (assignmentId: number, attachmentId: number) => {
     if (!token || !window.confirm("למחוק קובץ?")) return;
     setAssignments(prev => prev.map(a => a.id === assignmentId ? { ...a, attachments: (a.attachments || []).filter(att => att.id !== attachmentId) } : a));
     try { await fetch(`${API_BASE_URL}/attachments/${attachmentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); } catch { fetchAllData(); }
+  };
+
+  // ✨ NEW: Optimistic Like Toggle
+  const handleToggleLike = async (assignmentId: number, attachmentId: number, currentLikedStatus: boolean | undefined) => {
+    if (!token) {
+      alert("יש להתחבר כדי לסמן לייק לפתרון.");
+      return;
+    }
+
+    const isLiking = !currentLikedStatus;
+    const increment = isLiking ? 1 : -1;
+
+    // Optimistically update the UI instantly
+    setAssignments(prev => prev.map(a => {
+      if (a.id !== assignmentId) return a;
+      return {
+        ...a,
+        attachments: a.attachments.map(att => {
+          if (att.id !== attachmentId) return att;
+          return {
+            ...att,
+            likes: Math.max(0, (att.likes || 0) + increment),
+            isLikedByMe: isLiking
+          };
+        })
+      };
+    }));
+
+    try {
+      await fetch(`${API_BASE_URL}/attachments/${attachmentId}/like`, { 
+        method: 'POST', 
+        headers: { 'Authorization': `Bearer ${token}` } 
+      });
+    } catch {
+      // Revert if it failed
+      fetchAllData();
+    }
   };
 
   const searchResults = Object.entries(coursesMap).filter(([code, syl]) => { if (!searchQuery) return false; return code.includes(searchQuery) || (syl.name && syl.name.toLowerCase().includes(searchQuery.toLowerCase())); }).slice(0, 5);
@@ -526,6 +581,7 @@ export default function App() {
     if (date.toDateString() === today.toDateString()) dateStr = 'היום'; else if (date.toDateString() === tomorrow.toDateString()) dateStr = 'מחר';
     return `${dateStr} ב-${date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
   };
+  
   const getCardClasses = (deadline: string, courseTheme: CourseTheme, isCompleted: boolean, isOptional: boolean = false) => {
     if (isCompleted) return 'border-s-slate-300 dark:border-s-slate-600 border-y-slate-200 dark:border-y-slate-700 border-e-slate-200 dark:border-e-slate-700 bg-slate-100/60 dark:bg-slate-800/60 opacity-60 grayscale-[0.3] hover:opacity-80'; 
     const hoursLeft = (new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60);
@@ -549,12 +605,26 @@ export default function App() {
           <span className="text-xs truncate" dir="ltr">{att.filename}</span>
         </a>
       )}
-      {!editingFileId && token && (userProfile?.id === att.uploader_id || userProfile?.role === 'admin') && (
-        <div className="flex gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0">
-          <button onClick={(e) => { e.preventDefault(); setEditingFileId(att.id); setEditFileName(att.filename.replace(/\.[^/.]+$/, "")); }} className="text-slate-400 hover:text-blue-500" title="שינוי שם"><Edit className="w-3.5 h-3.5" /></button>
-          <button onClick={() => handleDeleteAttachment(assignmentId, att.id)} className="text-slate-400 hover:text-red-500" title="מחיקה"><XCircle className="w-3.5 h-3.5" /></button>
-        </div>
-      )}
+      
+      {/* Action Buttons (Likes, Edit, Delete) */}
+      <div className="flex items-center gap-2 shrink-0">
+        {att.category === 'solution' && (
+          <button 
+            onClick={(e) => { e.preventDefault(); handleToggleLike(assignmentId, att.id, att.isLikedByMe); }}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-colors ${att.isLikedByMe ? 'text-rose-600 bg-rose-100 dark:bg-rose-900/40 dark:text-rose-400 font-bold' : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-rose-500 font-medium'}`}
+            title="סמן פתרון כמועיל"
+          >
+            <Heart className={`w-3.5 h-3.5 ${att.isLikedByMe ? 'fill-current' : ''}`} />
+            <span>{att.likes || 0}</span>
+          </button>
+        )}
+        {!editingFileId && token && (userProfile?.id === att.uploader_id || userProfile?.role === 'admin') && (
+          <div className="flex gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity">
+            <button onClick={(e) => { e.preventDefault(); setEditingFileId(att.id); setEditFileName(att.filename.replace(/\.[^/.]+$/, "")); }} className="text-slate-400 hover:text-blue-500" title="שינוי שם"><Edit className="w-3.5 h-3.5" /></button>
+            <button onClick={(e) => { e.preventDefault(); handleDeleteAttachment(assignmentId, att.id); }} className="text-slate-400 hover:text-red-500" title="מחיקה"><XCircle className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -588,6 +658,12 @@ export default function App() {
 
             {token ? (
               <>
+                {/* ✨ NEW: Aggregated Global Likes Counter */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-sm font-medium border border-rose-200 dark:border-rose-800/50" title="סך הלייקים שקיבלת מהקהילה">
+                  <Heart className="w-4 h-4 fill-current" />
+                  <span className="font-bold">{userProfile?.totalLikesReceived || 0}</span>
+                </div>
+                
                 <button onClick={() => { localStorage.removeItem('teaspoon_jwt'); setToken(null); setUserProfile(null); }} className="flex items-center gap-2 p-2 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium" title="התנתק"><User className="w-5 h-5" /> התנתק</button>
                 <button onClick={openAddModal} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"><Plus className="w-4 h-4" /> הוספת מטלה</button>
               </>
@@ -659,7 +735,7 @@ export default function App() {
         </aside>
 
         <div className="flex-1 relative z-10 flex flex-col min-h-full">
-          {/* ✨ Filter Row with Dropdowns */}
+          {/* Filter Row with Dropdowns */}
           <div className="flex flex-wrap items-center gap-4 mb-6 relative z-20">
             <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400">
               <Filter className="w-4 h-4" />
@@ -808,8 +884,21 @@ export default function App() {
                           </div>
                         )}
                       </div>
-                      {(assignment.attachments?.filter(a => a.category === 'assignment').length || 0) > 0 && (<div className="mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 block">קובצי מטלה</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'assignment').map(att => renderAttachment(att, assignment.id))}</div></div>)}
-                      {(assignment.attachments?.filter(a => a.category === 'solution').length || 0) > 0 && (<div><span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-600 uppercase mb-1.5 flex items-center gap-1"><Lightbulb className="w-3 h-3" /> פתרונות ועזרים</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'solution').map(att => renderAttachment(att, assignment.id))}</div></div>)}
+                      {(assignment.attachments?.filter(a => a.category === 'assignment').length || 0) > 0 && (<div className="mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 block">קבצי מטלה</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'assignment').map(att => renderAttachment(att, assignment.id))}</div></div>)}
+                      
+                      {/* ✨ NEW: Render Solutions Sorted by Likes */}
+                      {(assignment.attachments?.filter(a => a.category === 'solution').length || 0) > 0 && (
+                        <div>
+                          <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-600 uppercase mb-1.5 flex items-center gap-1">
+                            <Lightbulb className="w-3 h-3" /> פתרונות ועזרים
+                          </span>
+                          <div className="space-y-1.5">
+                            {assignment.attachments?.filter(a => a.category === 'solution')
+                              .sort((a, b) => (b.likes || 0) - (a.likes || 0)) // Sort descending by likes
+                              .map(att => renderAttachment(att, assignment.id))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
