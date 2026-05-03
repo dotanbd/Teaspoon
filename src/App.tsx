@@ -688,7 +688,7 @@ export default function App() {
             {/* Status Filter */}
             <div className="relative group">
               <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
-                סטטוס: <span className="font-bold text-blue-600 dark:text-blue-400">{hideCompleted ? 'לא טופלו' : 'הכל'}</span>
+                סטטוס: <span className="font-bold text-blue-600 dark:text-blue-400">{hideCompleted ? 'לא בוצע' : 'הכל'}</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform" />
               </button>
               <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden flex flex-col z-50">
@@ -702,7 +702,7 @@ export default function App() {
                   onClick={() => setHideCompleted(true)} 
                   className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
                 >
-                  לא טופלו
+                  לא בוצע
                 </button>
               </div>
             </div>
