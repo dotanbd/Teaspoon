@@ -522,6 +522,14 @@ export default function App() {
       return;
     }
 
+    // Find the attachment to check if it's uploaded by the current user
+    const assignment = assignments.find(a => a.id === assignmentId);
+    const attachment = assignment?.attachments.find(att => att.id === attachmentId);
+    if (attachment && userProfile && attachment.uploader_id === userProfile.id) {
+      alert("לא ניתן לסמן לייק לפתרון שלך.");
+      return;
+    }
+
     const isLiking = !currentLikedStatus;
     const increment = isLiking ? 1 : -1;
 
