@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 
 // --- Production API Configuration ---
-// We use window.location.hostname logic to avoid "import.meta" target environment build errors
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location.hostname === 'myteaspoon.tech') {
     return 'https://api.myteaspoon.tech/api/v2';
@@ -186,7 +185,6 @@ const AdminDashboard = ({ token }: { token: string }) => {
     }
   };
 
-  // ✨ NEW: Approve removes the log and accepts the live changes
   const handleApproveLog = async (logId: number) => {
     try {
       const res = await fetch(`${API_BASE_URL}/admin/logs/${logId}/approve`, {
@@ -203,7 +201,6 @@ const AdminDashboard = ({ token }: { token: string }) => {
     }
   };
 
-  // ✨ NEW: Revert restores the old data and removes the log
   const handleRevertLog = async (logId: number) => {
     if (!window.confirm("האם לדחות את השינוי ולשחזר את המידע המקורי? הפעולה לא ניתנת לביטול.")) return;
     try {
@@ -223,7 +220,6 @@ const AdminDashboard = ({ token }: { token: string }) => {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col h-[calc(100vh-10rem)]">
-      {/* Admin Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shrink-0 px-4 pt-4 gap-4">
         <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 ${activeTab === 'users' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
           <Users className="w-4 h-4" /> ניהול משתמשים
@@ -233,8 +229,7 @@ const AdminDashboard = ({ token }: { token: string }) => {
         </button>
       </div>
 
-      {/* Admin Content Area */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {loading ? (
           <div className="flex justify-center items-center h-full"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div>
         ) : activeTab === 'users' ? (
@@ -243,7 +238,7 @@ const AdminDashboard = ({ token }: { token: string }) => {
               <thead className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-900/50 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="px-6 py-3 font-semibold">משתמש</th>
-                  <th className="px-6 py-3 font-semibold">אימייל</th>
+                  <th className="px-6 py-3 font-semibold hidden md:table-cell">אימייל</th>
                   <th className="px-6 py-3 font-semibold">הרשאה נוכחית</th>
                   <th className="px-6 py-3 font-semibold">פעולות</th>
                 </tr>
@@ -251,12 +246,15 @@ const AdminDashboard = ({ token }: { token: string }) => {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 flex items-center gap-3">
-                      <img src={u.picture} alt="" className="w-8 h-8 rounded-full bg-slate-200" referrerPolicy="no-referrer" />
-                      <span className="font-semibold text-slate-900 dark:text-slate-100">{u.name}</span>
+                    <td className="px-4 md:px-6 py-4 flex items-center gap-3">
+                      <img src={u.picture} alt="" className="w-8 h-8 rounded-full bg-slate-200 shrink-0" referrerPolicy="no-referrer" />
+                      <div className="flex flex-col">
+                         <span className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-1">{u.name}</span>
+                         <span className="text-xs text-slate-400 md:hidden block mt-0.5 line-clamp-1" dir="ltr">{u.email}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400" dir="ltr">{u.email}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 hidden md:table-cell" dir="ltr">{u.email}</td>
+                    <td className="px-4 md:px-6 py-4">
                       <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold ${
                         u.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
                         u.role === 'restricted' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -265,15 +263,15 @@ const AdminDashboard = ({ token }: { token: string }) => {
                         {u.role === 'admin' ? 'מנהל' : u.role === 'restricted' ? 'מוגבל' : 'משתמש רגיל'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 md:px-6 py-4">
                       <select 
                         value={u.role} 
                         onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 dark:text-slate-200"
+                        className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2 md:px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 dark:text-slate-200"
                       >
-                        <option value="user">משתמש רגיל (עריכה חופשית)</option>
+                        <option value="user">משתמש רגיל</option>
                         <option value="restricted">מוגבל (קריאה בלבד)</option>
-                        <option value="admin">מנהל (גישה לפאנל זה)</option>
+                        <option value="admin">מנהל מערכת</option>
                       </select>
                     </td>
                   </tr>
@@ -292,18 +290,15 @@ const AdminDashboard = ({ token }: { token: string }) => {
             )}
             
             {logs.map(log => {
-              let parsedOld = null;
-              let parsedNew = null;
+              let parsedOld = null; let parsedNew = null;
               try { parsedOld = log.old_data ? JSON.parse(log.old_data) : null; } catch {}
               try { parsedNew = log.new_data ? JSON.parse(log.new_data) : null; } catch {}
 
               return (
-                <div key={log.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-5 bg-white dark:bg-slate-800/50 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div key={log.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 md:p-5 bg-white dark:bg-slate-800/50 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
-                        {log.action}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">{log.action}</span>
                       <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{log.entity_type} #{log.entity_id}</span>
                       <span className="text-xs text-slate-400" dir="ltr">{new Date(log.created_at).toLocaleString('he-IL')}</span>
                     </div>
@@ -312,12 +307,12 @@ const AdminDashboard = ({ token }: { token: string }) => {
                       בוצע ע"י: <span className="font-bold">{log.user_name}</span> <span className="text-xs opacity-70" dir="ltr">({log.user_email})</span>
                     </div>
 
-                    <div className="flex items-stretch gap-4 overflow-hidden">
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-4 overflow-hidden">
                        <div className="flex-1 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-3 rounded text-xs opacity-80">
                          <div className="font-bold text-red-700 dark:text-red-400 mb-1">המידע המקורי:</div>
                          {parsedOld && <div className="text-slate-600 dark:text-slate-400">שם: {parsedOld.title}<br/>מועד: {parsedOld.deadline}</div>}
                        </div>
-                       <div className="flex items-center justify-center text-slate-300"><ArrowRight className="w-4 h-4" /></div>
+                       <div className="hidden sm:flex items-center justify-center text-slate-300"><ArrowRight className="w-4 h-4" /></div>
                        <div className="flex-1 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 p-3 rounded text-xs">
                          <div className="font-bold text-emerald-700 dark:text-emerald-400 mb-1">השינוי המוצע:</div>
                          {parsedNew && <div className="text-slate-800 dark:text-slate-200 font-medium">שם: {parsedNew.title}<br/>מועד: {parsedNew.deadline}</div>}
@@ -326,16 +321,10 @@ const AdminDashboard = ({ token }: { token: string }) => {
                   </div>
                   
                   <div className="shrink-0 flex flex-row lg:flex-col gap-2 border-t lg:border-t-0 lg:border-r border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 lg:pr-4">
-                    <button 
-                      onClick={() => handleApproveLog(log.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-sm font-bold transition-colors"
-                    >
+                    <button onClick={() => handleApproveLog(log.id)} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-sm font-bold transition-colors">
                       <Check className="w-4 h-4" /> אשר שינוי
                     </button>
-                    <button 
-                      onClick={() => handleRevertLog(log.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 hover:border-red-300 dark:hover:border-red-800 rounded-lg text-sm font-medium transition-colors text-slate-700 dark:text-slate-200"
-                    >
+                    <button onClick={() => handleRevertLog(log.id)} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 hover:border-red-300 dark:hover:border-red-800 rounded-lg text-sm font-medium transition-colors text-slate-700 dark:text-slate-200">
                       <X className="w-4 h-4" /> דחה ושחזר
                     </button>
                   </div>
@@ -357,7 +346,6 @@ export default function App() {
   const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('teaspoon_jwt') : null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  // ✨ NEW: State to track if we are viewing the App or the Admin Panel
   const [currentView, setCurrentView] = useState<'app' | 'admin'>('app');
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -380,7 +368,9 @@ export default function App() {
   });
 
   const [dateRange, setDateRange] = useState<{start: string, end: string}>({ start: '', end: '' });
-  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+  
+  // ✨ State for Dropdowns (Hover on desktop, Click on mobile)
+  const [openFilter, setOpenFilter] = useState<'type' | 'status' | 'date' | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -391,16 +381,12 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<AssignmentFormData>({ 
-    title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false 
-  });
+  const [formData, setFormData] = useState<AssignmentFormData>({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false });
 
   // Course Settings Modal State
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
   const [editingCourseCode, setEditingCourseCode] = useState<string | null>(null);
-  const [courseFormData, setCourseFormData] = useState<CourseSyllabus>({ 
-    name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false 
-  });
+  const [courseFormData, setCourseFormData] = useState<CourseSyllabus>({ name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false });
 
   // File Interaction State
   const [uploadingId, setUploadingId] = useState<number | null>(null);
@@ -454,23 +440,11 @@ export default function App() {
     try {
       const headers: HeadersInit = {}; if (token) headers['Authorization'] = `Bearer ${token}`;
       const [coursesRes, assignmentsRes] = await Promise.all([ fetch(`${API_BASE_URL}/courses`), fetch(`${API_BASE_URL}/assignments`, { headers }) ]);
-      
       if (!coursesRes.ok || !assignmentsRes.ok) throw new Error("Network error");
       
-      const rawMap = await coursesRes.json();
-      const mappedMap: CoursesMap = {};
+      const rawMap = await coursesRes.json(); const mappedMap: CoursesMap = {};
       Object.entries(rawMap).forEach(([k, v]: [string, any]) => {
-          mappedMap[k] = {
-              name: v.name || '',
-              hw_weight: v.hw_weight || 0,
-              hw_keep: v.hw_keep !== undefined ? v.hw_keep : (v.hw_drop || 0), 
-              hw_magen: v.hw_magen || false,
-              ww_weight: v.ww_weight || 0,
-              ww_keep: v.ww_keep !== undefined ? v.ww_keep : (v.ww_drop || 0),
-              ww_magen: v.ww_magen || false,
-              exam_weight: v.exam_weight || 0,
-              exam_magen: v.exam_magen || false
-          };
+          mappedMap[k] = { name: v.name || '', hw_weight: v.hw_weight || 0, hw_keep: v.hw_keep !== undefined ? v.hw_keep : (v.hw_drop || 0), hw_magen: v.hw_magen || false, ww_weight: v.ww_weight || 0, ww_keep: v.ww_keep !== undefined ? v.ww_keep : (v.ww_drop || 0), ww_magen: v.ww_magen || false, exam_weight: v.exam_weight || 0, exam_magen: v.exam_magen || false };
       });
       setCoursesMap(mappedMap);
 
@@ -479,14 +453,9 @@ export default function App() {
       if (token) {
         try {
           const [userRes, userCoursesRes] = await Promise.all([ fetch(`${API_BASE_URL}/users/me`, { headers }), fetch(`${API_BASE_URL}/users/me/courses`, { headers }) ]);
-          if (userRes.ok) {
-            setUserProfile(await userRes.json());
-            const dbCourses = await userCoursesRes.json(); setMyCourses(dbCourses); setVisibleCourses(dbCourses);
+          if (userRes.ok) { setUserProfile(await userRes.json()); const dbCourses = await userCoursesRes.json(); setMyCourses(dbCourses); setVisibleCourses(dbCourses);
           } else throw new Error("Unauthorized");
-        } catch { 
-            localStorage.removeItem('teaspoon_jwt'); 
-            setToken(null); 
-        }
+        } catch { localStorage.removeItem('teaspoon_jwt'); setToken(null); }
       } else {
         const localCourses = JSON.parse(localStorage.getItem('guest_courses') || '[]');
         const localCompletions = JSON.parse(localStorage.getItem('guest_completions') || '[]');
@@ -498,11 +467,7 @@ export default function App() {
     } catch { setFetchError('שגיאת תקשורת עם השרת.'); } finally { setLoading(false); }
   }, [token]);
 
-  useEffect(() => { 
-    if (currentView === 'app') {
-      fetchAllData(); 
-    }
-  }, [fetchAllData, currentView]);
+  useEffect(() => { if (currentView === 'app') { fetchAllData(); } }, [fetchAllData, currentView]);
 
   // --- Functions ---
   const syncCourses = (newCourses: string[]) => {
@@ -511,14 +476,8 @@ export default function App() {
   };
   const handleAddCourse = (code: string) => { 
     if (!code.trim()) return;
-    if (!myCourses.includes(code)) { 
-      const updated = [...myCourses, code]; 
-      setMyCourses(updated); 
-      setVisibleCourses(prev => [...prev, code]); 
-      syncCourses(updated); 
-    } 
-    setSearchQuery(''); 
-    setIsSearchFocused(false); 
+    if (!myCourses.includes(code)) { const updated = [...myCourses, code]; setMyCourses(updated); setVisibleCourses(prev => [...prev, code]); syncCourses(updated); } 
+    setSearchQuery(''); setIsSearchFocused(false); 
   };
   const handleRemoveCourse = (code: string) => { const updated = myCourses.filter(c => c !== code); setMyCourses(updated); setVisibleCourses(prev => prev.filter(c => c !== code)); syncCourses(updated); };
   const toggleVisibleCourse = (code: string) => setVisibleCourses(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
@@ -526,14 +485,12 @@ export default function App() {
   const openCourseSettings = (code: string) => {
     setEditingCourseCode(code);
     const syl = coursesMap[code] || { name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false };
-    setCourseFormData(syl);
-    setIsCourseModalOpen(true);
+    setCourseFormData(syl); setIsCourseModalOpen(true);
   };
 
   const handleSaveCourseSettings = async (e: React.FormEvent) => {
     e.preventDefault(); if (!token || !editingCourseCode) return;
-    setCoursesMap(prev => ({ ...prev, [editingCourseCode]: courseFormData }));
-    setIsCourseModalOpen(false);
+    setCoursesMap(prev => ({ ...prev, [editingCourseCode]: courseFormData })); setIsCourseModalOpen(false);
     const payload = { ...courseFormData, hw_drop: courseFormData.hw_keep, ww_drop: courseFormData.ww_keep };
     try { await fetch(`${API_BASE_URL}/courses/${editingCourseCode}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch { }
   };
@@ -559,11 +516,7 @@ export default function App() {
     }
   };
 
-  const openAddModal = () => { 
-    setIsEditing(false); setCurrentEditId(null); 
-    setFormData({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false }); 
-    setIsModalOpen(true); 
-  };
+  const openAddModal = () => { setIsEditing(false); setCurrentEditId(null); setFormData({ title: '', courseCode: '', courseName: '', type: 'Assignment', deadline: '', time: '', isOptional: false }); setIsModalOpen(true); };
 
   const openEditModal = (assignment: Assignment) => {
     const d = new Date(assignment.deadline); setIsEditing(true); setCurrentEditId(assignment.id);
@@ -595,15 +548,12 @@ export default function App() {
 
     const processCategory = (type: string, weight: number, keepCount: number) => {
       if (weight === 0) return { earned: 0, possible: 0, rawAvg: undefined };
-      const items = courseAssignments.filter(a => a.type === type);
-      const gradedItems = items.filter(a => a.grade !== null);
+      const items = courseAssignments.filter(a => a.type === type); const gradedItems = items.filter(a => a.grade !== null);
       if (gradedItems.length === 0) return { earned: 0, possible: weight, rawAvg: undefined }; 
-
       const actualKeep = keepCount > 0 ? keepCount : Math.max(1, gradedItems.length);
       let grades = gradedItems.map(a => a.grade as number).sort((a, b) => b - a); 
       if (keepCount > 0) { while (grades.length < actualKeep) { grades.push(0); } }
-      const keptGrades = grades.slice(0, actualKeep);
-      const avg = keptGrades.reduce((sum, g) => sum + g, 0) / actualKeep;
+      const keptGrades = grades.slice(0, actualKeep); const avg = keptGrades.reduce((sum, g) => sum + g, 0) / actualKeep;
       return { earned: (avg / 100) * weight, possible: weight, rawAvg: avg };
     };
 
@@ -618,24 +568,19 @@ export default function App() {
 
     if (exam.possible > 0 && exam.rawAvg !== undefined) {
       if (syllabus.hw_magen && hw.possible > 0 && hw.rawAvg !== undefined && hw.rawAvg < exam.rawAvg) {
-        final_exam_possible += hw.possible; final_exam_earned += (exam.rawAvg / 100) * hw.possible;
-        final_hw_possible = 0; final_hw_earned = 0; isMagenActive = true;
+        final_exam_possible += hw.possible; final_exam_earned += (exam.rawAvg / 100) * hw.possible; final_hw_possible = 0; final_hw_earned = 0; isMagenActive = true;
       }
       if (syllabus.ww_magen && ww.possible > 0 && ww.rawAvg !== undefined && ww.rawAvg < exam.rawAvg) {
-        final_exam_possible += ww.possible; final_exam_earned += (exam.rawAvg / 100) * ww.possible;
-        final_ww_possible = 0; final_ww_earned = 0; isMagenActive = true;
+        final_exam_possible += ww.possible; final_exam_earned += (exam.rawAvg / 100) * ww.possible; final_ww_possible = 0; final_ww_earned = 0; isMagenActive = true;
       }
     }
 
-    const totalEarned = final_hw_earned + final_ww_earned + final_exam_earned;
-    const totalPossible = final_hw_possible + final_ww_possible + final_exam_possible;
-
+    const totalEarned = final_hw_earned + final_ww_earned + final_exam_earned; const totalPossible = final_hw_possible + final_ww_possible + final_exam_possible;
     if (totalPossible === 0) {
         const gradedItems = courseAssignments.filter(a => a.grade !== null);
         const avg = gradedItems.reduce((sum, a) => sum + (a.grade as number), 0) / gradedItems.length;
         return { earned: avg.toFixed(1), possible: '100', isMagen: false, unconfigured: true };
     }
-
     return { earned: totalEarned.toFixed(1), possible: totalPossible.toFixed(1), isMagen: isMagenActive, unconfigured: false };
   };
 
@@ -651,9 +596,7 @@ export default function App() {
     if (!e.target.files || e.target.files.length === 0 || !token) return;
     const file = e.target.files[0]; const inputElement = e.target; setUploadingId(assignmentId);
     const fd = new FormData(); fd.append('file', file); fd.append('category', category);
-    try {
-      await fetch(`${API_BASE_URL}/assignments/${assignmentId}/attachments`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-      await fetchAllData();
+    try { await fetch(`${API_BASE_URL}/assignments/${assignmentId}/attachments`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd }); await fetchAllData();
     } catch { alert("שגיאה בהעלאה."); } finally { setUploadingId(null); inputElement.value = ''; }
   };
   
@@ -770,51 +713,55 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans pb-12 transition-colors duration-200" dir="rtl">
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 relative md:sticky top-0 z-40 transition-colors duration-200">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between">
-          <div className="flex items-center gap-3 mb-4 sm:mb-0">
-            <div className="bg-slate-900 dark:bg-slate-700 p-2 rounded-lg"><Calendar className="w-6 h-6 text-white" /></div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">Teaspoon</h1>
-              {token ? <p className="text-sm text-slate-500 dark:text-slate-400">שלום {userProfile?.name?.split(' ')[0]}!</p> : <p className="text-sm text-slate-500 dark:text-slate-400 italic">מצב אורח</p>}
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0">
+          
+          {/* ✨ Admin Panel / Header Title Side */}
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full md:w-auto">
+            <div className="flex items-center gap-3">
+              <div className="bg-slate-900 dark:bg-slate-700 p-2 rounded-lg"><Calendar className="w-6 h-6 text-white" /></div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">Teaspoon</h1>
+                {token ? <p className="text-sm text-slate-500 dark:text-slate-400">שלום {userProfile?.name?.split(' ')[0]}!</p> : <p className="text-sm text-slate-500 dark:text-slate-400 italic">מצב אורח</p>}
+              </div>
             </div>
+
+            {/* ✨ Admin Panel Button - Now attached safely to the left of the main title block */}
+            {userProfile?.role === 'admin' && (
+              <button 
+                onClick={() => setCurrentView(v => v === 'app' ? 'admin' : 'app')}
+                className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all shadow-sm ${currentView === 'admin' ? 'bg-purple-100 text-purple-700 border border-purple-300 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-700' : 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600'}`}
+              >
+                {currentView === 'app' ? <><ShieldAlert className="w-4 h-4" /> פאנל ניהול</> : <><ArrowRight className="w-4 h-4" /> חזרה למערכת</>}
+              </button>
+            )}
           </div>
           
-          <div className="flex items-center gap-3">
+          {/* ✨ Action Buttons (Flexible Mobile Row) */}
+          <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 sm:gap-3 w-full md:w-auto mt-2 md:mt-0">
             <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"><Moon className="w-5 h-5 hidden dark:block" /><Sun className="w-5 h-5 block dark:hidden" /></button>
             
             <button 
               onClick={handleCalendarSync} 
-              className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm ${
-                isCalendarCopied 
-                  ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400' 
-                  : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200'
+              className={`flex items-center gap-2 border px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm ${
+                isCalendarCopied ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200'
               }`}
             >
               {isCalendarCopied ? <Check className="w-4 h-4" /> : <Calendar className="w-4 h-4" />} 
-              {isCalendarCopied ? 'הקישור הועתק!' : 'סנכרון ליומן'}
+              <span className="hidden sm:inline">{isCalendarCopied ? 'הקישור הועתק!' : 'סנכרון ליומן'}</span>
             </button>
 
             {token ? (
               <>
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-sm font-medium border border-rose-200 dark:border-rose-800/50" title="סך הלייקים שקיבלת מהקהילה">
+                <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg text-xs sm:text-sm font-medium border border-rose-200 dark:border-rose-800/50" title="סך הלייקים שקיבלת מהקהילה">
                   <Heart className="w-4 h-4 fill-current" />
                   <span className="font-bold">{userProfile?.totalLikesReceived || 0}</span>
                 </div>
-
-                {userProfile?.role === 'admin' && (
-                  <button 
-                    onClick={() => setCurrentView(v => v === 'app' ? 'admin' : 'app')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${currentView === 'admin' ? 'bg-purple-100 text-purple-700 border border-purple-300 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-700' : 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600'}`}
-                  >
-                    {currentView === 'app' ? <><ShieldAlert className="w-4 h-4" /> פאנל ניהול</> : <><ArrowRight className="w-4 h-4" /> חזרה למערכת</>}
-                  </button>
-                )}
                 
-                <button onClick={() => { localStorage.removeItem('teaspoon_jwt'); setToken(null); setUserProfile(null); }} className="flex items-center gap-2 p-2 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium" title="התנתק"><User className="w-5 h-5" /> התנתק</button>
-                <button onClick={openAddModal} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"><Plus className="w-4 h-4" /> הוספת מטלה</button>
+                <button onClick={() => { localStorage.removeItem('teaspoon_jwt'); setToken(null); setUserProfile(null); }} className="flex items-center gap-2 p-2 px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-xs sm:text-sm font-medium" title="התנתק"><User className="w-4 h-4 sm:w-5 sm:h-5" /> התנתק</button>
+                <button onClick={openAddModal} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm"><Plus className="w-4 h-4" /> הוספת מטלה</button>
               </>
             ) : (
-              <button onClick={() => window.location.href = `${API_BASE_URL}/auth/login`} className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"><LogIn className="w-4 h-4" /> התחברות לעריכה</button>
+              <button onClick={() => window.location.href = `${API_BASE_URL}/auth/login`} className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm"><LogIn className="w-4 h-4" /> התחברות לעריכה</button>
             )}
           </div>
         </div>
@@ -826,7 +773,7 @@ export default function App() {
           <div className="w-full">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3">
               <ShieldAlert className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-              פאנל ניהול
+              מערכת ניהול ובקרת איכות
             </h2>
             <AdminDashboard token={token} />
           </div>
@@ -892,99 +839,123 @@ export default function App() {
 
             {/* Main Content (Assignments) */}
             <div className="flex-1 relative z-10 flex flex-col min-h-full">
-              {/* Filter Row with Dropdowns */}
-              <div className="flex flex-wrap items-center gap-4 mb-6 relative z-20">
-                <div className="flex items-center gap-2 ms-2 text-slate-500 dark:text-slate-400">
+              
+              {/* ✨ Unified Filter Row */}
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-6 relative z-20">
+                <div className="flex items-center gap-2 ms-1 sm:ms-2 text-slate-500 dark:text-slate-400">
                   <Filter className="w-4 h-4" />
                   <span className="text-sm font-semibold">סינון:</span>
                 </div>
 
+                {/* Global Filter Overlay (Hides on desktop for hover filters, present for date or mobile) */}
+                {openFilter && (
+                  <div 
+                    className={`fixed inset-0 z-40 ${openFilter === 'date' ? '' : 'md:hidden'}`} 
+                    onClick={() => setOpenFilter(null)}
+                  ></div>
+                )}
+
                 {/* Type Filter */}
-                <div className="relative group">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                <div 
+                  className="relative"
+                  onMouseEnter={() => window.innerWidth >= 768 && setOpenFilter('type')}
+                  onMouseLeave={() => window.innerWidth >= 768 && setOpenFilter(null)}
+                >
+                  <button 
+                    onClick={() => setOpenFilter(prev => prev === 'type' ? null : 'type')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm relative z-50"
+                  >
                     סוג: <span className="font-bold text-blue-600 dark:text-blue-400">{typeTranslations[activeTypeFilter]}</span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform" />
+                    <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${openFilter === 'type' ? 'rotate-180' : ''}`} />
                   </button>
-                  <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden flex flex-col z-50">
-                    {assignmentTypes.map(type => (
-                      <button 
-                        key={type} 
-                        onClick={() => setActiveTypeFilter(type)} 
-                        className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ activeTypeFilter === type ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
-                      >
-                        {typeTranslations[type]}
-                      </button>
-                    ))}
-                  </div>
+                  {openFilter === 'type' && (
+                    <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl transition-all duration-200 overflow-hidden flex flex-col z-50">
+                      {assignmentTypes.map(type => (
+                        <button 
+                          key={type} 
+                          onClick={() => { setActiveTypeFilter(type); setOpenFilter(null); }} 
+                          className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ activeTypeFilter === type ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
+                        >
+                          {typeTranslations[type]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Status Filter */}
-                <div className="relative group">
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                <div 
+                  className="relative"
+                  onMouseEnter={() => window.innerWidth >= 768 && setOpenFilter('status')}
+                  onMouseLeave={() => window.innerWidth >= 768 && setOpenFilter(null)}
+                >
+                  <button 
+                    onClick={() => setOpenFilter(prev => prev === 'status' ? null : 'status')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm relative z-50"
+                  >
                     סטטוס: <span className="font-bold text-blue-600 dark:text-blue-400">{hideCompleted ? 'לא טופלו' : 'הכל'}</span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-50 group-hover:rotate-180 transition-transform" />
+                    <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${openFilter === 'status' ? 'rotate-180' : ''}`} />
                   </button>
-                  <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden flex flex-col z-50">
-                    <button 
-                      onClick={() => setHideCompleted(false)} 
-                      className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ !hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
-                    >
-                      הכל
-                    </button>
-                    <button 
-                      onClick={() => setHideCompleted(true)} 
-                      className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
-                    >
-                      לא טופלו
-                    </button>
-                  </div>
+                  {openFilter === 'status' && (
+                    <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl transition-all duration-200 overflow-hidden flex flex-col z-50">
+                      <button 
+                        onClick={() => { setHideCompleted(false); setOpenFilter(null); }} 
+                        className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ !hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
+                      >
+                        הכל
+                      </button>
+                      <button 
+                        onClick={() => { setHideCompleted(true); setOpenFilter(null); }} 
+                        className={`text-right px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors ${ hideCompleted ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-slate-700/50' : 'text-slate-700 dark:text-slate-300' }`}
+                      >
+                        לא טופלו
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Dates Filter */}
+                {/* Dates Filter - Click Only, with centered transform on mobile to prevent cropping */}
                 <div className="relative">
                   <button 
-                    onClick={() => setIsDateFilterOpen(!isDateFilterOpen)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors shadow-sm ${ (dateRange.start || dateRange.end) ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700' }`}
+                    onClick={() => setOpenFilter(prev => prev === 'date' ? null : 'date')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors shadow-sm relative z-50 ${ (dateRange.start || dateRange.end) ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700' }`}
                   >
                     <Calendar className={`w-4 h-4 ${ (dateRange.start || dateRange.end) ? 'text-blue-500' : 'text-slate-400' }`} />
                     תאריכים {(dateRange.start || dateRange.end) && '(פעיל)'}
-                    <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${isDateFilterOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform ${openFilter === 'date' ? 'rotate-180' : ''}`} />
                   </button>
                   
-                  {isDateFilterOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setIsDateFilterOpen(false)}></div>
-                      <div className="absolute top-full right-0 mt-1 w-64 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 cursor-default">
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">מתאריך:</label>
-                            <input 
-                              type="date" 
-                              value={dateRange.start} 
-                              onChange={e => setDateRange(prev => ({...prev, start: e.target.value}))} 
-                              className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500" 
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">עד תאריך:</label>
-                            <input 
-                              type="date" 
-                              value={dateRange.end} 
-                              onChange={e => setDateRange(prev => ({...prev, end: e.target.value}))} 
-                              className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500" 
-                            />
-                          </div>
-                          {(dateRange.start || dateRange.end) && (
-                            <button 
-                              onClick={() => setDateRange({start: '', end: ''})} 
-                              className="w-full text-center text-xs text-red-500 hover:text-red-600 dark:hover:text-red-400 font-semibold pt-2 border-t border-slate-100 dark:border-slate-700 mt-2 transition-colors"
-                            >
-                              נקה תאריכים
-                            </button>
-                          )}
+                  {openFilter === 'date' && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-0 mt-1 w-64 max-w-[calc(100vw-2rem)] p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 cursor-default">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">מתאריך:</label>
+                          <input 
+                            type="date" 
+                            value={dateRange.start} 
+                            onChange={e => setDateRange(prev => ({...prev, start: e.target.value}))} 
+                            className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500" 
+                          />
                         </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">עד תאריך:</label>
+                          <input 
+                            type="date" 
+                            value={dateRange.end} 
+                            onChange={e => setDateRange(prev => ({...prev, end: e.target.value}))} 
+                            className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                        {(dateRange.start || dateRange.end) && (
+                          <button 
+                            onClick={() => { setDateRange({start: '', end: ''}); setOpenFilter(null); }} 
+                            className="w-full text-center text-xs text-red-500 hover:text-red-600 dark:hover:text-red-400 font-semibold pt-2 border-t border-slate-100 dark:border-slate-700 mt-2 transition-colors"
+                          >
+                            נקה תאריכים
+                          </button>
+                        )}
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1041,12 +1012,12 @@ export default function App() {
                               </div>
                             )}
                           </div>
-                          {(assignment.attachments?.filter(a => a.category === 'assignment').length || 0) > 0 && (<div className="mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 block">קובצי מטלה</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'assignment').map(att => renderAttachment(att, assignment.id))}</div></div>)}
+                          {(assignment.attachments?.filter(a => a.category === 'assignment').length || 0) > 0 && (<div className="mb-3"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 block">קבצי מטלה</span><div className="space-y-1.5">{assignment.attachments?.filter(a => a.category === 'assignment').map(att => renderAttachment(att, assignment.id))}</div></div>)}
                           
                           {(assignment.attachments?.filter(a => a.category === 'solution').length || 0) > 0 && (
                             <div>
                               <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-600 uppercase mb-1.5 flex items-center gap-1">
-                                <Lightbulb className="w-3 h-3" /> פתרונות ועזרים
+                                <Lightbulb className="w-3 h-3" /> רפרנסים ועזרים
                               </span>
                               <div className="space-y-1.5">
                                 {assignment.attachments?.filter(a => a.category === 'solution')
