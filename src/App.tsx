@@ -4,7 +4,7 @@ import {
   AlertCircle, Edit, Trash, Tag, Filter, Circle, Sun, Moon, 
   LogIn, User, Search, X, Check, Paperclip, FileText, Upload, Coffee,  
   XCircle, Lightbulb, Calculator, Shield, Settings, ChevronDown, 
-  Heart, Users, ShieldAlert, ArrowRight, ListChecks, Ban
+  Heart, Users, ShieldAlert, ArrowRight, ArrowLeft, ListChecks, Ban
 } from 'lucide-react';
 
 // --- Production API Configuration ---
@@ -372,7 +372,7 @@ const AdminDashboard = ({ token }: { token: string }) => {
                                 {log.entity_type === 'COURSE' ? `שם קורס: ${parsedOld.name}` : <>שם: {parsedOld.title}<br />מועד: {parsedOld.deadline}</>}
                               </div>}
                             </div>
-                            <div className="hidden sm:flex items-center justify-center text-slate-300"><ArrowRight className="w-4 h-4" /></div>
+                            <div className="hidden sm:flex items-center justify-center text-slate-300"><ArrowLeft className="w-4 h-4" /></div>
                             <div className="flex-1 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 p-3 rounded text-xs">
                               <div className="font-bold text-emerald-700 dark:text-emerald-400 mb-1">השינוי המוצע:</div>
                               {parsedNew && <div className="text-slate-800 dark:text-slate-200 font-medium">
