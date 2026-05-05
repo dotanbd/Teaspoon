@@ -743,7 +743,7 @@ export default function App() {
             <span>{att.likes || 0}</span>
           </button>
         )}
-        {!editingFileId && token && (userProfile?.id === att.uploader_id || userProfile?.role === 'admin') && (
+        {!editingFileId && token && (userProfile?.id === att.uploader_id || userProfile?.role === 'admin' || userProfile?.role === 'owner') && (
           <div className="flex gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity">
             <button onClick={(e) => { e.preventDefault(); setEditingFileId(att.id); setEditFileName(att.filename.replace(/\.[^/.]+$/, "")); }} className="text-slate-400 hover:text-blue-500" title="שינוי שם"><Edit className="w-3.5 h-3.5" /></button>
             <button onClick={(e) => { e.preventDefault(); handleDeleteAttachment(assignmentId, att.id); }} className="text-slate-400 hover:text-red-500" title="מחיקה"><XCircle className="w-3.5 h-3.5" /></button>
