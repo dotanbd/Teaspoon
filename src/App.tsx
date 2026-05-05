@@ -1262,21 +1262,21 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <Coffee className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm text-slate-600 dark:text-slate-400">העלאת רפרנסים וגיליונות - הכל במקום אחד</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <Coffee className="w-5 h-5 text-purple-500 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm text-slate-600 dark:text-slate-400">קהילה בסגנון ויקי - עדכונים מתבססים על משתמשי הקהילה</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <Coffee className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm text-slate-600 dark:text-slate-400">חישוב ציונים - מעקב אוטומטי אחר הציונים המצטברים ממטלות שבוצעו</p>
