@@ -4,7 +4,7 @@ import {
   AlertCircle, Edit, Trash, Tag, Filter, Circle, Sun, Moon, 
   LogIn, User, Search, X, Check, Paperclip, FileText, Upload, Coffee,  
   XCircle, Lightbulb, Calculator, Shield, Settings, ChevronDown, 
-  Heart, Users, ShieldAlert, ArrowRight, ListChecks
+  Heart, Users, ShieldAlert, ArrowRight, ListChecks, Ban
 } from 'lucide-react';
 
 // --- Production API Configuration ---
@@ -152,6 +152,32 @@ const AdminDashboard = ({ token }: { token: string }) => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // User search state
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+
+  const filteredUsers = users.filter(u => 
+    u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+    u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+  );
+
+  const handleRejectAndBlock = async (logId: number) => {
+    if (!window.confirm("האם לדחות את השינוי ולחסום את המשתמש מלערוך בעתיד?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/logs/${logId}/reject_and_block`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setLogs(prev => prev.filter(l => l.id !== logId));
+        fetchAdminData(); // Refresh the users list so the admin sees the new "restricted" badge immediately
+      } else {
+        alert("שגיאה בחסימת המשתמש.");
+      }
+    } catch {
+      alert("שגיאת תקשורת.");
+    }
+  };
+
   const fetchAdminData = useCallback(async () => {
     setLoading(true);
     try {
@@ -233,54 +259,67 @@ const AdminDashboard = ({ token }: { token: string }) => {
         {loading ? (
           <div className="flex justify-center items-center h-full"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div>
         ) : activeTab === 'users' ? (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-            <table className="w-full text-sm text-right">
-              <thead className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-900/50 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-6 py-3 font-semibold">משתמש</th>
-                  <th className="px-6 py-3 font-semibold hidden md:table-cell">אימייל</th>
-                  <th className="px-6 py-3 font-semibold">הרשאה נוכחית</th>
-                  <th className="px-6 py-3 font-semibold">פעולות</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {users.map(u => (
-                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 md:px-6 py-4 flex items-center gap-3">
-                      <img src={u.picture} alt="" className="w-8 h-8 rounded-full bg-slate-200 shrink-0" referrerPolicy="no-referrer" />
-                      <div className="flex flex-col">
-                         <span className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-1">{u.name}</span>
-                         <span className="text-xs text-slate-400 md:hidden block mt-0.5 line-clamp-1" dir="ltr">{u.email}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 hidden md:table-cell" dir="ltr">{u.email}</td>
-                    <td className="px-4 md:px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold ${
-                        u.role === 'owner' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                        u.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                        u.role === 'restricted' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                      }`}>
-                        {u.role === 'owner' ? 'בעלים' : u.role === 'admin' ? 'מנהל' : u.role === 'restricted' ? 'מוגבל' : 'משתמש רגיל'}
-                      </span>
-                    </td>
-                    <td className="px-4 md:px-6 py-4">
-                      <select 
-                        value={u.role} 
-                        disabled={u.role === 'owner'}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        className={`bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2 md:px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 dark:text-slate-200 ${u.role === 'owner' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <option value="user">משתמש רגיל</option>
-                        <option value="restricted">מוגבל (קריאה בלבד)</option>
-                        <option value="admin">מנהל</option>
-                        {u.role === 'owner' && <option value="owner">בעלים</option>}
-                      </select>
-                    </td>
+          <div className="flex flex-col gap-4">
+            <div className="relative w-full md:w-72">
+              <input 
+                type="text" 
+                placeholder="חיפוש לפי שם או אימייל..." 
+                value={userSearchQuery}
+                onChange={e => setUserSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-10 py-2 border rounded-lg bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors dark:text-slate-100"
+              />
+              <Search className="w-4 h-4 absolute right-3 top-2.5 text-slate-400" />
+            </div>
+            
+            <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-sm text-right">
+                <thead className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-900/50 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-6 py-3 font-semibold">משתמש</th>
+                    <th className="px-6 py-3 font-semibold hidden md:table-cell">אימייל</th>
+                    <th className="px-6 py-3 font-semibold">הרשאה נוכחית</th>
+                    <th className="px-6 py-3 font-semibold">פעולות</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {filteredUsers.map(u => (
+                    <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 md:px-6 py-4 flex items-center gap-3">
+                        <img src={u.picture} alt="" className="w-8 h-8 rounded-full bg-slate-200 shrink-0" referrerPolicy="no-referrer" />
+                        <div className="flex flex-col">
+                           <span className="font-semibold text-slate-900 dark:text-slate-100 line-clamp-1">{u.name}</span>
+                           <span className="text-xs text-slate-400 md:hidden block mt-0.5 line-clamp-1" dir="ltr">{u.email}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400 hidden md:table-cell" dir="ltr">{u.email}</td>
+                      <td className="px-4 md:px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold ${
+                          u.role === 'owner' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                          u.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                          u.role === 'restricted' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                        }`}>
+                          {u.role === 'owner' ? 'בעלים' : u.role === 'admin' ? 'מנהל' : u.role === 'restricted' ? 'מוגבל' : 'משתמש רגיל'}
+                        </span>
+                      </td>
+                      <td className="px-4 md:px-6 py-4">
+                        <select 
+                          value={u.role} 
+                          disabled={u.role === 'owner'}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                          className={`bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2 md:px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 dark:text-slate-200 ${u.role === 'owner' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <option value="user">משתמש רגיל</option>
+                          <option value="restricted">מוגבל (קריאה בלבד)</option>
+                          <option value="admin">מנהל</option>
+                          {u.role === 'owner' && <option value="owner">בעלים</option>}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -302,7 +341,12 @@ const AdminDashboard = ({ token }: { token: string }) => {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">{log.action}</span>
-                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{log.entity_type} #{log.entity_id}</span>
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {log.entity_type === 'COURSE' 
+                          ? `קורס: ${log.entity_id}` 
+                          : (log.entity_id.includes(':') ? log.entity_id.split(':')[1] : `${log.entity_type} #${log.entity_id}`)
+                        }
+                      </span>
                       <span className="text-xs text-slate-400" dir="ltr">{new Date(log.created_at).toLocaleString('he-IL')}</span>
                     </div>
                     
@@ -314,7 +358,7 @@ const AdminDashboard = ({ token }: { token: string }) => {
                       <div className="flex items-stretch gap-2 sm:gap-4 overflow-hidden">
                         <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-3 rounded text-xs">
                           <div className="font-bold text-blue-700 dark:text-blue-400 mb-1">קורס חדש שנוסף:</div>
-                          {parsedNew && <div className="text-slate-800 dark:text-slate-200 font-medium">שם הקורס: {parsedNew.name}<br/>קוד הקורס: {log.entity_id}</div>}
+                          {parsedNew && <div className="text-slate-800 dark:text-slate-200 font-medium">שם הקורס: {parsedNew.name}<br/>קוד הקורס: {log.entity_id.split(':')[0]}</div>}
                         </div>
                       </div>
                     ) : (
@@ -364,12 +408,15 @@ const AdminDashboard = ({ token }: { token: string }) => {
                     )}
                   </div>
                   
-                  <div className="shrink-0 flex flex-row lg:flex-col gap-2 border-t lg:border-t-0 lg:border-r border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 lg:pr-4">
-                    <button onClick={() => handleApproveLog(log.id)} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-sm font-bold transition-colors">
-                      <Check className="w-4 h-4" /> אשר שינוי
+                  <div className="shrink-0 flex flex-col gap-2 border-t lg:border-t-0 lg:border-r border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 lg:pr-4 min-w-[140px]">
+                    <button onClick={() => handleApproveLog(log.id)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-sm font-bold transition-colors">
+                      <Check className="w-4 h-4" /> אישור
                     </button>
-                    <button onClick={() => handleRevertLog(log.id)} className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 hover:border-red-300 dark:hover:border-red-800 rounded-lg text-sm font-medium transition-colors text-slate-700 dark:text-slate-200">
-                      <X className="w-4 h-4" /> דחה שינוי
+                    <button onClick={() => handleRevertLog(log.id)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white rounded-lg text-sm font-medium transition-colors text-slate-700 dark:text-slate-200">
+                      <X className="w-4 h-4" /> דחייה
+                    </button>
+                    <button onClick={() => handleRejectAndBlock(log.id)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-900/50 rounded-lg text-xs font-bold transition-colors mt-1">
+                      <Ban className="w-3.5 h-3.5" /> דחה וחסום
                     </button>
                   </div>
                 </div>
