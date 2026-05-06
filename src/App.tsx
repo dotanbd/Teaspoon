@@ -1268,7 +1268,16 @@ export default function App() {
               if (coursesMap[newCourseCode]) { handleAddCourse(newCourseCode); } else {
                 if (!myCourses.includes(newCourseCode)) {
                   const updated = [...myCourses, newCourseCode]; setMyCourses(updated); setVisibleCourses(prev => [...prev, newCourseCode]);
-                  setCoursesMap(prev => ({ ...prev, [newCourseCode]: { name: newCourseName, hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false } }));
+                  const newSyl = { name: newCourseName, hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false };
+                  setCoursesMap(prev => ({ ...prev, [newCourseCode]: newSyl }));
+                  if (token) {
+                      fetch(`${API_BASE_URL}/courses/${newCourseCode}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({ ...newSyl, hw_drop: 0, ww_drop: 0 })
+                      }).catch(() => console.error("Failed to save course"));
+                  }
+                  
                   syncCourses(updated);
                 }
               }
