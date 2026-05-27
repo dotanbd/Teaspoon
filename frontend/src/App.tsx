@@ -222,18 +222,18 @@ const isDateField = (key: string) => key.toLowerCase().includes('date') || key.t
 // ==========================================
 // ADMIN DASHBOARD COMPONENT
 // ==========================================
-const AdminDashboard = ({ 
-  token, 
-  logs, 
-  setLogs, 
-  coursesMap, 
+const AdminDashboard = ({
+  token,
+  logs,
+  setLogs,
+  coursesMap,
   userProfile
-}: { 
-  token: string, 
-  logs: AuditLog[], 
-  setLogs: React.Dispatch<React.SetStateAction<AuditLog[]>>, 
+}: {
+  token: string,
+  logs: AuditLog[],
+  setLogs: React.Dispatch<React.SetStateAction<AuditLog[]>>,
   coursesMap: CoursesMap,
-  userProfile: any 
+  userProfile: any
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'changelogs'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -261,7 +261,7 @@ const AdminDashboard = ({
       });
       if (res.ok) {
         setLogs(prev => prev.filter(l => l.id !== logId));
-        fetchAdminData(); 
+        fetchAdminData();
       } else {
         alert("שגיאה בחסימת המשתמש.");
       }
@@ -369,7 +369,7 @@ const AdminDashboard = ({
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col h-[calc(100vh-10rem)]">
-      
+
       {/* --- TABS NAVIGATION --- */}
       <div className="flex overflow-x-auto standard-scrollbar border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shrink-0 px-4 pt-4 gap-4">
         <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
@@ -651,7 +651,7 @@ const AdminDashboard = ({
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white">ניהול עדכוני מערכת (Changelogs)</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400">הוסף גרסאות חדשות שיקפצו לכל המשתמשים.</p>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   setEditingChangelog({ version: currentAppVersion + 1, date_str: '', title: '', features: [] });
                 }}
@@ -666,21 +666,21 @@ const AdminDashboard = ({
                 <h4 className="font-bold text-blue-800 dark:text-blue-300">
                   {editingChangelog.id ? `עריכת גרסה ${editingChangelog.version}` : 'יצירת גרסה חדשה'}
                 </h4>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input type="number" placeholder="מספר גרסה (למשל: 3)" value={editingChangelog.version} onChange={e => setEditingChangelog({...editingChangelog, version: parseInt(e.target.value)})} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
-                  <input type="text" placeholder="תאריך (למשל: מאי 2026)" value={editingChangelog.date_str} onChange={e => setEditingChangelog({...editingChangelog, date_str: e.target.value})} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
-                  <input type="text" placeholder="כותרת העדכון" value={editingChangelog.title} onChange={e => setEditingChangelog({...editingChangelog, title: e.target.value})} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
+                  <input type="number" placeholder="מספר גרסה (למשל: 3)" value={editingChangelog.version} onChange={e => setEditingChangelog({ ...editingChangelog, version: parseInt(e.target.value) })} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
+                  <input type="text" placeholder="תאריך (למשל: מאי 2026)" value={editingChangelog.date_str} onChange={e => setEditingChangelog({ ...editingChangelog, date_str: e.target.value })} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
+                  <input type="text" placeholder="כותרת העדכון" value={editingChangelog.title} onChange={e => setEditingChangelog({ ...editingChangelog, title: e.target.value })} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
                 </div>
 
                 <div className="space-y-3 mt-4">
                   <div className="font-semibold text-sm dark:text-white">פסקאות / פיצ'רים:</div>
                   {editingChangelog.features.map((feat: any, idx: number) => (
                     <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start bg-white dark:bg-slate-800 p-3 rounded-lg border dark:border-slate-700">
-                      
-                      <select 
-                        value={feat.icon || 'Star'} 
-                        onChange={e => { const newF = [...editingChangelog.features]; newF[idx].icon = e.target.value; setEditingChangelog({...editingChangelog, features: newF}); }} 
+
+                      <select
+                        value={feat.icon || 'Star'}
+                        onChange={e => { const newF = [...editingChangelog.features]; newF[idx].icon = e.target.value; setEditingChangelog({ ...editingChangelog, features: newF }); }}
                         className="w-full sm:w-32 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
                         dir="ltr"
                       >
@@ -689,27 +689,32 @@ const AdminDashboard = ({
                         ))}
                       </select>
 
-                      <input type="text" placeholder="כותרת הפיצ'ר" value={feat.title} onChange={e => { const newF = [...editingChangelog.features]; newF[idx].title = e.target.value; setEditingChangelog({...editingChangelog, features: newF}); }} className="w-full sm:w-1/3 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" />
-                      <textarea placeholder="תיאור..." value={feat.desc} onChange={e => { const newF = [...editingChangelog.features]; newF[idx].desc = e.target.value; setEditingChangelog({...editingChangelog, features: newF}); }} className="w-full flex-1 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white sm:h-9 min-h-[60px] sm:min-h-0 outline-none focus:ring-1 focus:ring-blue-500" />
-                      
-                      <button onClick={() => { const newF = editingChangelog.features.filter((_:any, i:number) => i !== idx); setEditingChangelog({...editingChangelog, features: newF}); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded self-end sm:self-auto transition-colors"><Trash className="w-4 h-4" /></button>
+                      <input type="text" placeholder="כותרת הפיצ'ר" value={feat.title} onChange={e => { const newF = [...editingChangelog.features]; newF[idx].title = e.target.value; setEditingChangelog({ ...editingChangelog, features: newF }); }} className="w-full sm:w-1/3 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" />
+                      <textarea placeholder="תיאור..." value={feat.desc} onChange={e => { const newF = [...editingChangelog.features]; newF[idx].desc = e.target.value; setEditingChangelog({ ...editingChangelog, features: newF }); }} className="w-full flex-1 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white sm:h-9 min-h-[60px] sm:min-h-0 outline-none focus:ring-1 focus:ring-blue-500" />
+
+                      <button onClick={() => { const newF = editingChangelog.features.filter((_: any, i: number) => i !== idx); setEditingChangelog({ ...editingChangelog, features: newF }); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded self-end sm:self-auto transition-colors"><Trash className="w-4 h-4" /></button>
                     </div>
                   ))}
-                  <button onClick={() => setEditingChangelog({...editingChangelog, features: [...editingChangelog.features, {icon: 'Star', title: '', desc: ''}]})} className="text-sm text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1"><Plus className="w-4 h-4" /> הוסף פסקה</button>
+                  <button onClick={() => setEditingChangelog({ ...editingChangelog, features: [...editingChangelog.features, { icon: 'Star', title: '', desc: '' }] })} className="text-sm text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1"><Plus className="w-4 h-4" /> הוסף פסקה</button>
                 </div>
 
                 <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
                   <button onClick={() => setEditingChangelog(null)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white rounded-lg text-sm font-bold transition-colors">ביטול</button>
-                  <button 
+                  <button
                     onClick={async () => {
                       const method = editingChangelog.id ? 'PUT' : 'POST';
                       const url = editingChangelog.id ? `${API_BASE_URL}/admin/changelogs/${editingChangelog.id}` : `${API_BASE_URL}/admin/changelogs`;
-                      await fetch(`${url}?token=${token}`, {
-                        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editingChangelog)
+                      await fetch(url, {
+                        method,
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(editingChangelog)
                       });
                       setEditingChangelog(null);
                       fetchAdminData(); // Smooth SPA reload instead of window.location.reload()
-                    }} 
+                    }}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
                   >
                     <Check className="w-4 h-4" /> שמור גרסה
