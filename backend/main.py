@@ -403,7 +403,7 @@ async def google_auth_callback(code: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    jwt_token = jwt.encode({"sub": user.google_id, "id": user.id, "exp": datetime.utcnow() + timedelta(days=30)},
+    jwt_token = jwt.encode({"sub": user.google_id, "id": user.id, "role": user.role, "exp": datetime.utcnow() + timedelta(days=30)},
                            JWT_SECRET, algorithm="HS256")
     return RedirectResponse(url=f"{FRONTEND_URL}/?token={jwt_token}")
 
