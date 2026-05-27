@@ -644,7 +644,6 @@ const AdminDashboard = ({
             </div>
           </div>
         ) : (
-          /* 👈 NEW CHANGELOGS TAB */
           <div className="space-y-6">
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div>
@@ -748,7 +747,10 @@ const AdminDashboard = ({
                     <button onClick={() => setEditingChangelog(log)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 dark:bg-slate-700/50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
                     <button onClick={async () => {
                       if (window.confirm('בטוח שברצונך למחוק גרסה זו?')) {
-                        await fetch(`${API_BASE_URL}/admin/changelogs/${log.id}?token=${token}`, { method: 'DELETE' });
+                        await fetch(`${API_BASE_URL}/admin/changelogs/${log.id}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${token}` }
+                        });
                         fetchAdminData();
                       }
                     }} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 dark:bg-slate-700/50 dark:hover:bg-red-900/30 rounded-lg transition-colors"><Trash className="w-4 h-4" /></button>
