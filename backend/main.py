@@ -322,8 +322,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         print(f"DEBUG: Creating token for user {db_user.email} with role: {db_user.role}")
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
     except:
         raise HTTPException(status_code=401, detail="Invalid token")
 
