@@ -5,7 +5,8 @@ import {
   LogIn, User, Search, X, Check, Paperclip, FileText, Coffee,
   XCircle, Calculator, Shield, Settings, ChevronDown,
   Heart, Users, ShieldAlert, ArrowLeft, ListChecks, Ban,
-  Trophy, LayoutGrid, List, Download, UploadCloud, Loader2
+  Trophy, LayoutGrid, List, Download, UploadCloud, Loader2,
+  Star, Zap, Wrench, Sparkles
 } from 'lucide-react';
 
 // --- Production/Development API Configuration ---
@@ -33,10 +34,23 @@ const isDevEnvironment = () => {
 
 const IS_DEV = isDevEnvironment();
 
+const CHANGELOG_ICONS: Record<string, React.ElementType> = {
+  Star,      // For New Features
+  Zap,       // For Performance/Speed
+  Sparkles,  // For UI/Design
+  Wrench,    // For Bug Fixes
+  Shield     // For Security/Permissions
+};
+
+const DynamicChangelogIcon = ({ name, className }: { name: string, className?: string }) => {
+  const Icon = CHANGELOG_ICONS[name] || Star; // Fallback to Star if missing
+  return <Icon className={className} />;
+};
+
 // --- TypeScript Interfaces ---
 interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; likes?: number; isLikedByMe?: boolean; }
 interface Assignment { id: number; title: string; courseCode: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
-interface UserProfile { id: number; email: string; name: string; picture: string; role: string; totalLikesReceived?: number; total_credits?: number; weighted_sum?: number; previous_total_credits?: number; previous_weighted_sum?: number; binary_credits?: number; previous_binary_credits?: number; }
+interface UserProfile { id: number; email: string; name: string; picture: string; role: string; totalLikesReceived?: number; total_credits?: number; weighted_sum?: number; previous_total_credits?: number; previous_weighted_sum?: number; binary_credits?: number; previous_binary_credits?: number; last_seen_version?: number; }
 interface CourseSyllabus { name: string; hw_weight: number; hw_keep: number; hw_magen: boolean; ww_weight: number; ww_keep: number; ww_magen: boolean; lab_report_weight: number; lab_report_keep: number; lab_report_magen: boolean; exam_weight: number; exam_magen: boolean; }
 interface CoursesMap { [key: string]: CourseSyllabus; }
 interface AssignmentFormData { title: string; courseCode: string; courseName: string; type: string; deadline: string; time: string; recommended_date: string; recommended_time: string; }
@@ -208,10 +222,27 @@ const isDateField = (key: string) => key.toLowerCase().includes('date') || key.t
 // ==========================================
 // ADMIN DASHBOARD COMPONENT
 // ==========================================
-const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, logs: AuditLog[], setLogs: React.Dispatch<React.SetStateAction<AuditLog[]>>, coursesMap: CoursesMap }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
+const AdminDashboard = ({ 
+  token, 
+  logs, 
+  setLogs, 
+  coursesMap, 
+  userProfile
+}: { 
+  token: string, 
+  logs: AuditLog[], 
+  setLogs: React.Dispatch<React.SetStateAction<AuditLog[]>>, 
+  coursesMap: CoursesMap,
+  userProfile: any 
+}) => {
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'changelogs'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Changelog State
+  const [appReleases, setAppReleases] = useState<any[]>([]);
+  const [editingChangelog, setEditingChangelog] = useState<any | null>(null);
+  const currentAppVersion = appReleases.length > 0 ? Math.max(...appReleases.map(r => r.version)) : 0;
 
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -230,7 +261,7 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
       });
       if (res.ok) {
         setLogs(prev => prev.filter(l => l.id !== logId));
-        fetchAdminData(); // Refresh the users list so the admin sees the new "restricted" badge immediately
+        fetchAdminData(); 
       } else {
         alert("שגיאה בחסימת המשתמש.");
       }
@@ -239,47 +270,31 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
     }
   };
 
-  // Track which pill is currently clicked (null means "Show All")
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string[]>([]);
 
   const extractCourseCode = (entityId: string) => {
     if (!entityId) return "";
-
-    // Check if it's the complex format: "123:044102 - Course Name"
     if (entityId.includes(':')) {
-      // Split at the colon and take the right side -> "044102 - Course Name"
       const afterColon = entityId.split(':')[1];
-      // Split at the hyphen and take the left side -> "044102"
       return afterColon.split(' - ')[0].trim();
     }
-    // If there's no colon, it's already the simple format: "044102"
     return entityId.trim();
   };
 
-  // 1. Automatically find unique course codes that have pending items
   const pendingCourseCodes = useMemo(() => {
-    // Assuming your logs have a status like 'pending' or 'awaiting_approval'
     const pendingLogs = logs.filter(log => log.status === 'PENDING');
-
-    // Extract the codes, put them in a Set to remove duplicates, and sort them
     const codes = pendingLogs.map(log => extractCourseCode(log.entity_id));
     return Array.from(new Set(codes)).sort();
   }, [logs]);
 
-  // 2. The final array of logs you will actually map over in your JSX
   const displayedLogs = useMemo(() => {
-    // If the array is empty, nothing is filtered -> show all!
     if (selectedCourseFilter.length === 0) return logs;
-
-    // Otherwise, only show logs whose courseCode is currently selected
     return logs.filter(log => selectedCourseFilter.includes(extractCourseCode(log.entity_id)));
   }, [logs, selectedCourseFilter]);
 
   const toggleCourseFilter = (code: string) => {
     setSelectedCourseFilter(prev =>
-      prev.includes(code)
-        ? prev.filter(c => c !== code)
-        : [...prev, code]
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
     );
   };
 
@@ -289,16 +304,19 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
       if (activeTab === 'users') {
         const res = await fetch(`${API_BASE_URL}/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) setUsers(await res.json());
-      } else {
+      } else if (activeTab === 'logs') {
         const res = await fetch(`${API_BASE_URL}/admin/logs`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) setLogs(await res.json());
+      } else if (activeTab === 'changelogs') {
+        const res = await fetch(`${API_BASE_URL}/changelogs`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) setAppReleases(await res.json());
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, token]);
+  }, [activeTab, token, setLogs]);
 
   useEffect(() => { fetchAdminData(); }, [fetchAdminData]);
 
@@ -351,19 +369,27 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col h-[calc(100vh-10rem)]">
-      <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shrink-0 px-4 pt-4 gap-4">
-        <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 ${activeTab === 'users' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+      
+      {/* --- TABS NAVIGATION --- */}
+      <div className="flex overflow-x-auto standard-scrollbar border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shrink-0 px-4 pt-4 gap-4">
+        <button onClick={() => setActiveTab('users')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
           <Users className="w-4 h-4" /> ניהול משתמשים
         </button>
-        <button onClick={() => setActiveTab('logs')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 ${activeTab === 'logs' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+        <button onClick={() => setActiveTab('logs')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'logs' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
           <ListChecks className="w-4 h-4" /> אישורים ממתינים {logs.length > 0 && `(${logs.length})`}
         </button>
+        {userProfile?.role === 'owner' && (
+          <button onClick={() => setActiveTab('changelogs')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'changelogs' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            <Sparkles className="w-4 h-4" /> עדכוני מערכת
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {loading ? (
           <div className="flex justify-center items-center h-full"><RefreshCw className="w-8 h-8 text-blue-500 animate-spin" /></div>
         ) : activeTab === 'users' ? (
+          /* ... YOUR EXISTING USERS TAB ... */
           <div className="flex flex-col gap-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Users className="w-5 h-5 text-blue-500" />
@@ -434,7 +460,8 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'logs' ? (
+          /* ... YOUR EXISTING LOGS TAB ... */
           <div className="space-y-4">
             {logs.length === 0 && (
               <div className="text-center py-16 flex flex-col items-center">
@@ -484,17 +511,13 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                 try { parsedNew = log.new_data ? JSON.parse(log.new_data) : null; } catch { parsedNew = null; }
 
                 const courseCode = extractCourseCode(log.entity_id);
-
-                // Extract Assignment/Summary Title
                 const itemTitle = parsedNew?.title || parsedOld?.title || '';
 
                 return (
                   <div key={log.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 md:p-5 bg-white dark:bg-slate-800/50 shadow-sm flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
 
-                      {/* Header Area: Action Pill, Course Pill, Timestamp */}
                       <div className="flex flex-wrap items-center gap-2 mb-4">
-                        {/* ACTION PILL */}
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${log.action === 'CREATE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
                           log.action === 'DELETE' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
                             'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
@@ -502,12 +525,10 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                           {log.action}
                         </span>
 
-                        {/* STRICT COURSE PILL */}
                         <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 tracking-wider truncate max-w-[250px] sm:max-w-sm border border-indigo-200 dark:border-indigo-800/50">
                           {courseCode} - {coursesMap[courseCode]?.name || 'קורס לא מזוהה'}
                         </span>
 
-                        {/* SUMMARY PREVIEW BUTTON */}
                         {log.entity_type === 'SUMMARY' && log.action === 'CREATE' && (
                           <a
                             href={`${API_BASE_URL}/admin/summaries/${log.entity_id.split(':')[0]}/preview?token=${token}`}
@@ -522,26 +543,18 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                         <span className="text-xs text-slate-400 mr-auto" dir="ltr">{new Date(log.created_at).toLocaleString('he-IL')}</span>
                       </div>
 
-                      {/* Subheader Area: Item Title (H2) & User Info */}
                       <div className="mb-4 border-b border-slate-100 dark:border-slate-700/50 pb-4">
-
-                        {/* ITEM TITLE (H2) */}
                         {log.entity_type !== 'COURSE' && (
                           <h2 className="text-lg font-extrabold text-slate-900 dark:text-white mb-1.5">
                             {itemTitle || `${log.entity_type === 'ASSIGNMENT' ? 'מטלה' : 'סיכום'} #${log.entity_id.split(':').pop()}`}
                           </h2>
                         )}
-
-                        {/* USER INFO */}
                         <div className="text-sm text-slate-600 dark:text-slate-300">
                           בוצע ע"י: <span className="font-bold">{log.user_name}</span> <span className="text-xs opacity-70" dir="ltr">({log.user_email})</span>
                         </div>
                       </div>
 
-                      {/* Payload Area */}
                       <div className="flex flex-col gap-3 overflow-hidden">
-
-                        {/* UPDATE ACTION */}
                         {log.action === 'UPDATE' && (
                           <div className="flex flex-col gap-2 w-full">
                             <div className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">שינויים שבוצעו:</div>
@@ -578,7 +591,6 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                           </div>
                         )}
 
-                        {/* CREATE ACTION */}
                         {log.action === 'CREATE' && (
                           <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-3 rounded-lg text-xs">
                             <div className="font-bold text-blue-700 dark:text-blue-400 mb-2">נתוני הפריט החדש:</div>
@@ -587,7 +599,7 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                                 if (!val || key === 'id' || key === 'course_id' || key === 'course_code') return null;
                                 return (
                                   <div key={key} className="truncate">
-                                    <span className="text-slate-500 dark:text-slate-400">{translateField(key)}:</span> {isDateField(key) ? formatLogDate(val) : String(val)}
+                                    <span className="text-slate-500 dark:text-slate-400">{key}:</span> {String(val)}
                                   </div>
                                 );
                               })}
@@ -595,7 +607,6 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                           </div>
                         )}
 
-                        {/* DELETE ACTION */}
                         {log.action === 'DELETE' && (
                           <div className="flex-1 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-3 rounded-lg text-xs">
                             <div className="font-bold text-red-700 dark:text-red-400 mb-2 flex items-center gap-1.5">
@@ -606,18 +617,16 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                                 if (!val || key === 'id' || key === 'course_id' || key === 'course_code') return null;
                                 return (
                                   <div key={key} className="truncate">
-                                    <span className="opacity-70">{translateField(key)}:</span> {isDateField(key) ? formatLogDate(val) : String(val)}
+                                    <span className="opacity-70">{key}:</span> {String(val)}
                                   </div>
                                 );
                               })}
                             </div>
                           </div>
                         )}
-
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="shrink-0 flex flex-col gap-2 border-t lg:border-t-0 lg:border-r border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 lg:pr-4 min-w-[140px]">
                       <button onClick={() => handleApproveLog(log.id)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-sm font-bold transition-colors shadow-sm">
                         <Check className="w-4 h-4" /> אישור
@@ -632,6 +641,115 @@ const AdminDashboard = ({ token, logs, setLogs, coursesMap }: { token: string, l
                   </div>
                 );
               })}
+            </div>
+          </div>
+        ) : (
+          /* 👈 NEW CHANGELOGS TAB */
+          <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">ניהול עדכוני מערכת (Changelogs)</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">הוסף גרסאות חדשות שיקפצו לכל המשתמשים.</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setEditingChangelog({ version: currentAppVersion + 1, date_str: '', title: '', features: [] });
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> גרסה חדשה
+              </button>
+            </div>
+
+            {editingChangelog && (
+              <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-800/50 space-y-4">
+                <h4 className="font-bold text-blue-800 dark:text-blue-300">
+                  {editingChangelog.id ? `עריכת גרסה ${editingChangelog.version}` : 'יצירת גרסה חדשה'}
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input type="number" placeholder="מספר גרסה (למשל: 3)" value={editingChangelog.version} onChange={e => setEditingChangelog({...editingChangelog, version: parseInt(e.target.value)})} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
+                  <input type="text" placeholder="תאריך (למשל: מאי 2026)" value={editingChangelog.date_str} onChange={e => setEditingChangelog({...editingChangelog, date_str: e.target.value})} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
+                  <input type="text" placeholder="כותרת העדכון" value={editingChangelog.title} onChange={e => setEditingChangelog({...editingChangelog, title: e.target.value})} className="p-2 rounded border dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-1 focus:ring-blue-500 dark:text-white" />
+                </div>
+
+                <div className="space-y-3 mt-4">
+                  <div className="font-semibold text-sm dark:text-white">פסקאות / פיצ'רים:</div>
+                  {editingChangelog.features.map((feat: any, idx: number) => (
+                    <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start bg-white dark:bg-slate-800 p-3 rounded-lg border dark:border-slate-700">
+                      
+                      <select 
+                        value={feat.icon || 'Star'} 
+                        onChange={e => { const newF = [...editingChangelog.features]; newF[idx].icon = e.target.value; setEditingChangelog({...editingChangelog, features: newF}); }} 
+                        className="w-full sm:w-32 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+                        dir="ltr"
+                      >
+                        {Object.keys(CHANGELOG_ICONS).map(iconName => (
+                          <option key={iconName} value={iconName}>{iconName}</option>
+                        ))}
+                      </select>
+
+                      <input type="text" placeholder="כותרת הפיצ'ר" value={feat.title} onChange={e => { const newF = [...editingChangelog.features]; newF[idx].title = e.target.value; setEditingChangelog({...editingChangelog, features: newF}); }} className="w-full sm:w-1/3 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" />
+                      <textarea placeholder="תיאור..." value={feat.desc} onChange={e => { const newF = [...editingChangelog.features]; newF[idx].desc = e.target.value; setEditingChangelog({...editingChangelog, features: newF}); }} className="w-full flex-1 p-1.5 text-sm rounded border dark:border-slate-600 dark:bg-slate-900 dark:text-white sm:h-9 min-h-[60px] sm:min-h-0 outline-none focus:ring-1 focus:ring-blue-500" />
+                      
+                      <button onClick={() => { const newF = editingChangelog.features.filter((_:any, i:number) => i !== idx); setEditingChangelog({...editingChangelog, features: newF}); }} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded self-end sm:self-auto transition-colors"><Trash className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => setEditingChangelog({...editingChangelog, features: [...editingChangelog.features, {icon: 'Star', title: '', desc: ''}]})} className="text-sm text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1"><Plus className="w-4 h-4" /> הוסף פסקה</button>
+                </div>
+
+                <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
+                  <button onClick={() => setEditingChangelog(null)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white rounded-lg text-sm font-bold transition-colors">ביטול</button>
+                  <button 
+                    onClick={async () => {
+                      const method = editingChangelog.id ? 'PUT' : 'POST';
+                      const url = editingChangelog.id ? `${API_BASE_URL}/admin/changelogs/${editingChangelog.id}` : `${API_BASE_URL}/admin/changelogs`;
+                      await fetch(`${url}?token=${token}`, {
+                        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editingChangelog)
+                      });
+                      setEditingChangelog(null);
+                      fetchAdminData(); // Smooth SPA reload instead of window.location.reload()
+                    }} 
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+                  >
+                    <Check className="w-4 h-4" /> שמור גרסה
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {appReleases.map(log => (
+                <div key={log.id} className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded text-sm font-black">גרסה {log.version}</span>
+                      <span className="text-slate-500 text-sm">{log.date}</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{log.title}</h4>
+                    <div className="space-y-2">
+                      {log.features.map((f: any, idx: number) => (
+                        <div key={idx} className="text-sm text-slate-600 dark:text-slate-400 flex items-start gap-2">
+                          <DynamicChangelogIcon name={f.icon} className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{f.title}: </span>
+                            {f.desc}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0 mr-4">
+                    <button onClick={() => setEditingChangelog(log)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 dark:bg-slate-700/50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
+                    <button onClick={async () => {
+                      if (window.confirm('בטוח שברצונך למחוק גרסה זו?')) {
+                        await fetch(`${API_BASE_URL}/admin/changelogs/${log.id}?token=${token}`, { method: 'DELETE' });
+                        fetchAdminData();
+                      }
+                    }} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 dark:bg-slate-700/50 dark:hover:bg-red-900/30 rounded-lg transition-colors"><Trash className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -797,9 +915,65 @@ export default function App() {
   const [courseCodeError, setCourseCodeError] = useState<string>('');
   const [isAddingCourse, setIsAddingCourse] = useState<boolean>(false);
 
-  // Intro Modal State
-  const [showIntroModal, setShowIntroModal] = useState<boolean>(false);
-  const [dontShowAgain, setDontShowAgain] = useState<boolean>(false);
+  // --- Changelog & Intro Modal State ---
+  const [appReleases, setAppReleases] = useState<any[]>([]);
+  const [unseenReleases, setUnseenReleases] = useState<any[]>([]);
+  const [showIntroModal, setShowIntroModal] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(true);
+
+  // 1. Fetch Changelogs on mount
+  useEffect(() => {
+    const fetchChangelogs = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/changelogs`);
+        if (res.ok) {
+          const data = await res.json();
+          setAppReleases(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch changelogs", err);
+      }
+    };
+    fetchChangelogs();
+  }, []);
+
+  // 2. Check if the user needs to see the modal
+  useEffect(() => {
+    if (userProfile && appReleases.length > 0) {
+      const currentAppVersion = Math.max(...appReleases.map(r => r.version), 0);
+      const userVersion = userProfile.last_seen_version || 0;
+
+      if (userVersion < currentAppVersion) {
+        const newReleases = appReleases.filter(r => r.version > userVersion);
+        setUnseenReleases(newReleases);
+        setShowIntroModal(true);
+      }
+    }
+  }, [userProfile, appReleases]);
+
+  // 3. Handler for closing the modal and updating the DB
+  const handleCloseIntroModal = async () => {
+    setShowIntroModal(false);
+
+    if (dontShowAgain && token && appReleases.length > 0) {
+      const currentAppVersion = Math.max(...appReleases.map(r => r.version));
+      try {
+        await fetch(`${API_BASE_URL}/users/me/intro-version`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ version: currentAppVersion })
+        });
+
+        // Optimistically update local profile
+        setUserProfile(prev => prev ? { ...prev, last_seen_version: currentAppVersion } : prev);
+      } catch (err) {
+        console.error("Failed to update intro version", err);
+      }
+    }
+  };
 
   // Mobile Filter Modal State
   const [isMobileFilterModalOpen, setIsMobileFilterModalOpen] = useState<boolean>(false);
@@ -1676,7 +1850,7 @@ export default function App() {
               <ShieldAlert className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               מערכת ניהול
             </h2>
-            <AdminDashboard token={token} logs={logs} setLogs={setLogs} coursesMap={coursesMap} />
+            <AdminDashboard token={token} logs={logs} setLogs={setLogs} coursesMap={coursesMap} userProfile={userProfile} />
           </div>
         ) : currentView === 'summaries' ? (
           <div className="flex flex-col flex-1 animate-in fade-in duration-300">
@@ -2840,95 +3014,65 @@ export default function App() {
         </div>
       )}
 
-      {/* Intro Modal */}
-      {showIntroModal && (
-        <div className="fixed inset-0 bg-slate-900/50 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700">
-            <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Coffee className="w-6 h-6 text-blue-500" />
-                ברוכים הבאים ל-Teaspoon!
-              </h2>
-              <button
-                onClick={() => {
-                  setShowIntroModal(false);
-                  if (dontShowAgain) {
-                    localStorage.setItem('hasSeenIntro', 'true');
-                  }
-                }}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none"
-              >
-                &times;
+      {/* Dynamic Changelog Modal */}
+      {showIntroModal && unseenReleases.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+
+            <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 relative shrink-0">
+              <button onClick={() => setShowIntroModal(false)} className="absolute top-4 left-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-white/50 dark:hover:bg-slate-700 transition-colors">
+                <X className="w-5 h-5" />
               </button>
+              <div className="w-12 h-12 bg-white dark:bg-slate-700 rounded-xl shadow-sm flex items-center justify-center mb-4 text-blue-600 dark:text-blue-400">
+                <Coffee className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">מה חדש במערכת?</h2>
+              <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">הנה העדכונים האחרונים שפספסת מאז הביקור האחרון שלך:</p>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="text-center mb-6">
-                <div className="bg-slate-900 dark:bg-slate-700 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                  <Coffee className="w-8 h-8 text-white" />
+
+            <div className="p-6 overflow-y-auto standard-scrollbar space-y-8 flex-1">
+              {unseenReleases.map(release => (
+                <div key={release.version} className="space-y-4">
+                  <div className="flex items-baseline justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">{release.title}</h3>
+                    <span className="text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">{release.date}</span>
+                  </div>
+                  <div className="space-y-4">
+                    {release.features.map((feature: any, idx: number) => (
+                      <div key={idx} className="flex gap-4">
+                        <div className="shrink-0 mt-1 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                          <DynamicChangelogIcon name={feature.icon} className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 dark:text-white mb-0.5">{feature.title}</h4>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{feature.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-2">
-                  Teaspoon - מערכת ניהול מטלות קהילתית
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400">
-                  פלטפורמה למעקב מטלות, שיתוף פתרונות ועזרה הדדית
-                </p>
+              ))}
+            </div>
+
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 shrink-0 bg-white dark:bg-slate-800">
+              <div className="flex items-center gap-3 mb-4">
+                <input
+                  type="checkbox"
+                  id="dontShowAgain"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="w-4 h-4 border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-blue-500 accent-blue-600 cursor-pointer"
+                />
+                <label htmlFor="dontShowAgain" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                  הבנתי, אל תציג עדכונים אלו שוב
+                </label>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Coffee className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">ניהול כל המטלות במקום אחד עם תזכורות וסנכרון ליומן</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Coffee className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">העלאת רפרנסים וגיליונות - הכל במקום אחד</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Coffee className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">קהילה בסגנון ויקי - עדכונים מתבססים על משתמשי הקהילה</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Coffee className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">חישוב ציונים - מעקב אוטומטי אחר הציונים המצטברים ממטלות שבוצעו</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-3 mb-4">
-                  <input
-                    type="checkbox"
-                    id="dontShowAgain"
-                    checked={dontShowAgain}
-                    onChange={(e) => setDontShowAgain(e.target.checked)}
-                    className="w-4 h-4 border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-blue-500 accent-blue-600 cursor-pointer"
-                  />
-                  <label htmlFor="dontShowAgain" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                    אל תציג שוב
-                  </label>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowIntroModal(false);
-                    if (dontShowAgain) {
-                      localStorage.setItem('hasSeenIntro', 'true');
-                    }
-                  }}
-                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  בואו נתחיל!
-                </button>
-              </div>
+              <button
+                onClick={handleCloseIntroModal}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg font-bold transition-all shadow-sm active:scale-[0.98]"
+              >
+                בואו נמשיך!
+              </button>
             </div>
           </div>
         </div>

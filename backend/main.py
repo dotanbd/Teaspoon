@@ -99,6 +99,7 @@ class DBUser(Base):
     previous_weighted_sum = Column(Float, default=0.0)
     binary_credits = Column(Float, default=0.0)
     previous_binary_credits = Column(Float, default=0.0)
+    last_seen_version = Column(Integer, default=0)
 
 class DBCourse(Base):
     __tablename__ = "courses"
@@ -178,6 +179,16 @@ class DBSummaryLike(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     summary_id = Column(Integer, ForeignKey("summaries.id", ondelete="CASCADE"))
 
+class DBChangelog(Base):
+    __tablename__ = "changelogs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    version = Column(Integer, unique=True, index=True)
+    date_str = Column(String(100))
+    title = Column(String(255))
+    features = Column(String)  # Will store a JSON string of the features/paragraphs
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -226,6 +237,21 @@ class ProgressUpdateReq(BaseModel):
     new_score: Optional[float] = None
     old_score: Optional[float] = None
     old_was_pass_fail: bool = False
+
+class UpdateVersionRequest(BaseModel):
+    version: int
+
+# --- CHANGELOG SCHEMAS ---
+class ChangelogFeature(BaseModel):
+    icon: str # We store the name of the Lucide icon (e.g., "Download", "Star")
+    title: str
+    desc: str
+
+class ChangelogPayload(BaseModel):
+    version: int
+    date_str: str
+    title: str
+    features: List[ChangelogFeature]
 
 
 # --- App Setup ---
@@ -407,6 +433,7 @@ def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends
         "picture": user.picture,
         "role": user.role,
         "totalLikesReceived": semester_likes + summary_likes + lifetime,
+        "last_seen_version": user.last_seen_version or 0,
         "total_credits": getattr(user, 'total_credits', 0.0),
         "weighted_sum": getattr(user, 'weighted_sum', 0.0),
         "previous_total_credits": getattr(user, 'previous_total_credits', 0.0),
@@ -1585,6 +1612,7 @@ def undo_degree_progress(db: Session = Depends(get_db), current_user: dict = Dep
     db.refresh(db_user)
     return db_user
 
+
 @app.post("/api/v2/users/me/progress/reset")
 def reset_degree_progress(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     db_user = db.query(DBUser).filter(DBUser.id == current_user['id']).first()
@@ -1600,3 +1628,76 @@ def reset_degree_progress(db: Session = Depends(get_db), current_user: dict = De
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+@app.post("/api/v2/users/me/intro-version")
+def update_intro_version(req: UpdateVersionRequest, db: Session = Depends(get_db),
+                         current_user: dict = Depends(get_current_user)):
+    db_user = db.query(DBUser).filter(DBUser.id == current_user['id']).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Only update if the new version is strictly greater
+    if req.version > (db_user.last_seen_version or 0):
+        db_user.last_seen_version = req.version
+        db.commit()
+
+    return {"status": "success", "last_seen_version": db_user.last_seen_version}
+
+
+# --- CHANGELOG ENDPOINTS ---
+@app.get("/api/v2/changelogs")
+def get_changelogs(db: Session = Depends(get_db)):
+    logs = db.query(DBChangelog).order_by(DBChangelog.version.desc()).all()
+    return [{
+        "id": log.id,
+        "version": log.version,
+        "date": log.date_str,
+        "title": log.title,
+        "features": json.loads(log.features) if log.features else []
+    } for log in logs]
+
+
+@app.post("/api/v2/admin/changelogs")
+def create_changelog(req: ChangelogPayload, db: Session = Depends(get_db),
+                     current_user: dict = Depends(get_current_user)):
+    if current_user.get('role') != 'owner':
+        raise HTTPException(status_code=403, detail="Only owners can manage changelogs")
+
+    new_log = DBChangelog(
+        version=req.version,
+        date_str=req.date_str,
+        title=req.title,
+        features=json.dumps([f.dict() for f in req.features])
+    )
+    db.add(new_log)
+    db.commit()
+    return {"status": "success"}
+
+
+@app.put("/api/v2/admin/changelogs/{log_id}")
+def update_changelog(log_id: int, req: ChangelogPayload, db: Session = Depends(get_db),
+                     current_user: dict = Depends(get_current_user)):
+    if current_user.get('role') != 'owner':
+        raise HTTPException(status_code=403, detail="Only owners can manage changelogs")
+
+    log = db.query(DBChangelog).filter(DBChangelog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Changelog not found")
+
+    log.version = req.version
+    log.date_str = req.date_str
+    log.title = req.title
+    log.features = json.dumps([f.dict() for f in req.features])
+    db.commit()
+    return {"status": "success"}
+
+
+@app.delete("/api/v2/admin/changelogs/{log_id}")
+def delete_changelog(log_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if current_user.get('role') != 'owner':
+        raise HTTPException(status_code=403, detail="Only owners can manage changelogs")
+
+    db.query(DBChangelog).filter(DBChangelog.id == log_id).delete()
+    db.commit()
+    return {"status": "success"}
