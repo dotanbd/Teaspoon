@@ -3034,7 +3034,7 @@ export default function App() {
                 <Coffee className="w-6 h-6" />
               </div>
               <h2 className="text-2xl font-black text-slate-900 dark:text-white">מה חדש במערכת?</h2>
-              <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">הנה העדכונים האחרונים שנוסםו מאז הביקור האחרון שלך:</p>
+              <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">הנה העדכונים האחרונים שנוספו מאז הביקור האחרון שלך:</p>
             </div>
 
             <div className="p-6 overflow-y-auto standard-scrollbar space-y-8 flex-1">
