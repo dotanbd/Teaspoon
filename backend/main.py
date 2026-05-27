@@ -329,7 +329,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 def get_admin_user(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
-    print(f"DEBUG: Creating token for user {user.email} with role: {user.role}")
     if not user or user.role not in ["admin", "owner"]:
         raise HTTPException(status_code=403, detail="Admin access strictly required")
     return user
