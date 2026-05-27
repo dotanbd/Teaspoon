@@ -181,7 +181,6 @@ class DBSummaryLike(Base):
 
 class DBChangelog(Base):
     __tablename__ = "changelogs"
-
     id = Column(Integer, primary_key=True, index=True)
     version = Column(Integer, unique=True, index=True)
     date_str = Column(String(100))
@@ -324,6 +323,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        print(f"DEBUG: Creating token for user {db_user.email} with role: {db_user.role}")
     except:
         raise HTTPException(status_code=401, detail="Invalid token")
 
