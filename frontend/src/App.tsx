@@ -648,7 +648,7 @@ const AdminDashboard = ({
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white">ניהול עדכוני מערכת (Changelogs)</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">הוסף גרסאות חדשות שיקפצו לכל המשתמשים.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">הוסף עדכונים על גרסאות שיוצגו לכל המשתמשים.</p>
               </div>
               <button
                 onClick={() => {
@@ -712,7 +712,7 @@ const AdminDashboard = ({
                         body: JSON.stringify(editingChangelog)
                       });
                       setEditingChangelog(null);
-                      fetchAdminData(); // Smooth SPA reload instead of window.location.reload()
+                      fetchAdminData()
                     }}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
                   >
@@ -3034,7 +3034,7 @@ export default function App() {
                 <Coffee className="w-6 h-6" />
               </div>
               <h2 className="text-2xl font-black text-slate-900 dark:text-white">מה חדש במערכת?</h2>
-              <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">הנה העדכונים האחרונים שפספסת מאז הביקור האחרון שלך:</p>
+              <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">הנה העדכונים האחרונים שנוסםו מאז הביקור האחרון שלך:</p>
             </div>
 
             <div className="p-6 overflow-y-auto standard-scrollbar space-y-8 flex-1">
@@ -3071,7 +3071,7 @@ export default function App() {
                   className="w-4 h-4 border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-blue-500 accent-blue-600 cursor-pointer"
                 />
                 <label htmlFor="dontShowAgain" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                  הבנתי, אל תציג עדכונים אלו שוב
+                  הבנתי, אל תציג עדכונים אלה שוב
                 </label>
               </div>
               <button
