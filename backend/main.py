@@ -415,7 +415,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             if not dt_field: continue
 
             deadline = dt_field.dt
-            if type(deadline) is not datetime:
+            if not isinstance(deadline, datetime):
                 deadline = datetime.combine(deadline, datetime.max.time())
             if deadline.tzinfo:
                 deadline = deadline.astimezone(pytz.utc).replace(tzinfo=None)
@@ -479,7 +479,6 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     # Safely convert the database string back to a datetime object
                     cand_deadline_dt = cand.deadline
                     if isinstance(cand_deadline_dt, str):
-                        from datetime import datetime
                         # Standardize "YYYY-MM-DD HH:MM:SS" SQLite format
                         clean_str = cand_deadline_dt[:19].replace('T', ' ')
                         try:
