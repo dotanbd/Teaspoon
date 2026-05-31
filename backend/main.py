@@ -476,14 +476,28 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                 ).all()
 
                 for cand in manual_candidates:
-                    delta_days = abs((cand.deadline - deadline).days)
+                    # Safely convert the database string back to a datetime object
+                    cand_deadline_dt = cand.deadline
+                    if isinstance(cand_deadline_dt, str):
+                        from datetime import datetime
+                        # Standardize "YYYY-MM-DD HH:MM:SS" SQLite format
+                        clean_str = cand_deadline_dt[:19].replace('T', ' ')
+                        try:
+                            cand_deadline_dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            continue  # Skip if unparseable
+
+                    # Now we can safely subtract them!
+                    delta_days = abs((cand_deadline_dt - deadline).days)
+
                     if delta_days <= 4:
                         # Extract the first number found in both titles
                         cand_num_match = re.search(r"(\d+)", str(cand.title))
                         new_num_match = re.search(r"(\d+)", clean_title)
 
-                        if (not new_num_match or cand_num_match and new_num_match and cand_num_match.group(1) ==
-                                new_num_match.group(1)):
+                        if (not new_num_match or (
+                                cand_num_match and new_num_match and cand_num_match.group(1) == new_num_match.group(
+                                1))):
                             existing = cand
                             print(f"DEBUG [AUTO-MERGE]: Merged Moodle '{clean_title}' into Manual '{cand.title}'")
                             break
@@ -491,10 +505,14 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             if existing:
                 if not existing.moodle_uid: existing.moodle_uid = moodle_uid
 
-                # Check for deadline updates
-                if existing.deadline != deadline:
+                # Check for deadline updates (Convert both to strings to compare safely)
+                existing_deadline_str = str(existing.deadline)[:19].replace('T', ' ')
+                new_deadline_str = str(deadline)[:19]
+
+                if existing_deadline_str != new_deadline_str:
                     existing.deadline = deadline
                     sync_count += 1
+
                 if getattr(existing, 'course_code', existing.course_code) != course_code:
                     if hasattr(existing, 'course_code'):
                         existing.course_code = course_code
