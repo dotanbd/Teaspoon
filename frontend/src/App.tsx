@@ -2722,7 +2722,7 @@ export default function App() {
                   dir="ltr"
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  <span className="font-bold">איך משיגים את הקישור?</span> היכנסו למודל &gt; לחצו על היומן בסרגל הצד &gt; "ייצוא יומן" &gt; "כל האירועים" ו"לאחרונה ובקרוב" &gt; "קבלת כתובת URL" והעתיקו לכאן.
+                  <span className="font-bold">איך משיגים את הקישור?</span> היכנסו למודל &gt; לחצו על 'צפיה בלוח אירועים...' בסרגל הצד &gt; מצאו בתחתית הדף את הקישור 'ניהול לוחות־שנה (חיצוניים)' &gt; ייצוא לוח שנה &gt; סמנו 'כל האירועים' ו־'60 הימים...' &gt; "קבלת כתובת URL" והעתיקו לכאן.
                 </p>
               </div>
 
