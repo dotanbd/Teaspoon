@@ -395,11 +395,13 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
     for component in cal.walk():
         if component.name == "VEVENT":
             summary = str(component.get('summary', '')).strip()
+            deadline_keywords = ['הגשה', 'הגשת', 'להגיש', 'גליון', 'גיליון', 'תרגיל', 'נסגר', 'is due']
 
             # Filter out Zoom meetings or course openings
             if summary.startswith("נפתח ב") or "קישור" in summary or "זום" in summary:
                 continue
-            if not ("נסגר" in summary or "is due" in summary):
+
+            if not any(word in summary for word in deadline_keywords):
                 continue
 
             # Extract Deadline
