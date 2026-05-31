@@ -439,7 +439,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             existing = db.query(DBAssignment).filter(
                 or_(
                     DBAssignment.moodle_uid == moodle_uid,
-                    and_(DBAssignment.course_code == course_code, DBAssignment.title == clean_title)
+                    and_(DBAssignment.courseCode == course_code, DBAssignment.title == clean_title)
                 )
             ).first()
 
@@ -453,11 +453,10 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             else:
                 new_assignment = DBAssignment(
                     title=clean_title,
-                    course_code=course_code,
+                    courseCode=course_code,
                     deadline=deadline,
                     type="assignment",
-                    description="סונכרן אוטומטית ממערכת Moodle.",
-                    created_by=user_id,
+                    user_id=user_id,
                     moodle_uid=moodle_uid
                 )
                 db.add(new_assignment)
