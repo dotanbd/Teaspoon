@@ -1914,7 +1914,7 @@ export default function App() {
               {token && (
                 <button
                   onClick={() => setShowMoodleModal(true)}
-                  className="flex items-center justify-center gap-1.5 bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 px-3 py-2 rounded-xl text-sm font-bold transition-all border border-orange-200 dark:border-orange-800"
+                  className="flex items-center justify-center gap-1.5 bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 px-3 py-2 rounded-full text-sm font-bold transition-all border border-orange-200 dark:border-orange-800"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span className="hidden sm:inline">סנכרון Moodle</span>
