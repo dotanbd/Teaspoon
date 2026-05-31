@@ -446,11 +446,14 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             if existing:
                 if not existing.moodle_uid: existing.moodle_uid = moodle_uid
                 if existing.deadline != deadline:
+                    print(f"DEBUG [UPDATE]: {course_code} | '{clean_title}' | Deadline changed from"
+                          f"{existing.deadline} to {deadline}")
                     existing.deadline = deadline
                     sync_count += 1
                 if existing.title != clean_title:
                     existing.title = clean_title
             else:
+                print(f"DEBUG [NEW]: {course_code} | '{clean_title}' | Deadline: {deadline}")
                 new_assignment = DBAssignment(
                     title=clean_title,
                     courseCode=course_code,
@@ -460,7 +463,6 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     moodle_uid=moodle_uid
                 )
                 db.add(new_assignment)
-                logging.info(f"New Assignment: {new_assignment.title} ({new_assignment.courseCode})")
                 sync_count += 1
 
     db.commit()
