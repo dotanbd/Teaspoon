@@ -433,11 +433,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             raw_code = category_str.split('.')[0]  # e.g. '00440252'
 
             course_code = raw_code.lstrip('0')
-            if len(course_code) < 6:
-                course_code = '0' + course_code
-            elif len(course_code) == 6 and not raw_code.endswith(course_code):
-                course_code = raw_code.lstrip('0')
-                course_code = '0' + course_code if len(course_code) < 7 else course_code
+            course_code = course_code.zfill(7)
 
             moodle_uid = str(component.get('uid', ''))
             if not moodle_uid: continue
