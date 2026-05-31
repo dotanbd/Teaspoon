@@ -489,7 +489,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     title=clean_title,
                     courseCode=course_code,
                     deadline=deadline,
-                    type="assignment",
+                    type="Assignment",
                     user_id=user_id,
                     moodle_uid=moodle_uid
                 )
