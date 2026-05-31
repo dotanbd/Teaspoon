@@ -444,7 +444,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
 
             clean_title = (summary.replace(" נסגרת", "").replace(" נסגר", "")
                            .replace(" is due", "").replace("הגשת ", "").replace("הגשה ", "")
-                           .replace("יש ", "").replace("את ", "").replace("תאריך ", "").strip())
+                           .replace("יש להגיש", "").replace(" את ", "").replace("תאריך ", "").strip())
 
             # Regex to extract structured assignment names
             # re.IGNORECASE makes it catch "quiz", "QUIZ", "ww", etc.
@@ -475,13 +475,18 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
 
             if existing:
                 if not existing.moodle_uid: existing.moodle_uid = moodle_uid
+
+                # Check for deadline updates
                 if existing.deadline != deadline:
-                    print(f"DEBUG [UPDATE]: {course_code} | '{clean_title}' | Deadline changed from"
-                          f"{existing.deadline} to {deadline}")
                     existing.deadline = deadline
                     sync_count += 1
                 if existing.title != clean_title:
                     existing.title = clean_title
+                if getattr(existing, 'courseCode', existing.course_code) != course_code:
+                    if hasattr(existing, 'courseCode'):
+                        existing.courseCode = course_code
+                    else:
+                        existing.course_code = course_code
             else:
                 print(f"DEBUG [NEW]: {course_code} | '{clean_title}' | Deadline: {deadline}")
                 new_assignment = DBAssignment(
