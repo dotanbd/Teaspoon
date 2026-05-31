@@ -396,10 +396,10 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
     for component in cal.walk():
         if component.name == "VEVENT":
             summary = str(component.get('summary', '')).strip()
-            deadline_keywords = ['הגשה', 'הגשת', 'להגיש', 'גליון', 'גיליון', 'תרגיל', 'נסגר', 'is due', 'Quiz']
+            deadline_keywords = ['הגשה', 'הגשת', 'להגיש', 'גליון', 'גיליון', 'תרגיל', 'נסגר', 'is due', 'Quiz', 'סימולציה']
 
             # Filter out Zoom meetings or course openings
-            if summary.startswith("נפתח ב") or "קישור" in summary or "זום" in summary:
+            if summary.startswith("נפתח ב") or "קישור" in summary or "זום" in summary or "סקר" in summary or "מילואים" in summary:
                 continue
 
             if not any(word in summary for word in deadline_keywords):
@@ -446,7 +446,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
 
             # Regex to extract structured assignment names
             # re.IGNORECASE makes it catch "quiz", "QUIZ", "ww", etc.
-            pattern = r"(תרגיל|גיליון|גליון|Quiz|WW).*?(\d+)"
+            pattern = r"(תרגיל|סימולציה|גיליון|גליון|Quiz|HW|WW).*?(\d+)"
             match = re.search(pattern, clean_title, re.IGNORECASE)
 
             if match:
