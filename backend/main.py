@@ -23,7 +23,14 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignK
 from sqlalchemy import or_, and_, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
+import requests
+from icalendar import Calendar
+import pytz
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -93,6 +100,7 @@ class DBUser(Base):
     picture = Column(String)
     role = Column(String, default="student")
     followed_courses = relationship("DBCourse", secondary=user_courses)
+    moodle_ics_url = Column(String(500), nullable=True)
     total_credits = Column(Float, default=0.0)
     weighted_sum = Column(Float, default=0.0)
     previous_total_credits = Column(Float, default=0.0)
@@ -121,6 +129,7 @@ class DBCourse(Base):
 class DBAssignment(Base):
     __tablename__ = "assignments"
     id = Column(Integer, primary_key=True, index=True)
+    moodle_uid = Column(String(255), nullable=True)
     title = Column(String)
     courseCode = Column(String, ForeignKey("courses.code"))
     type = Column(String)
@@ -240,6 +249,9 @@ class ProgressUpdateReq(BaseModel):
 class UpdateVersionRequest(BaseModel):
     version: int
 
+class MoodleSyncRequest(BaseModel):
+    ics_url: str
+
 # --- CHANGELOG SCHEMAS ---
 class ChangelogFeature(BaseModel):
     icon: str # We store the name of the Lucide icon (e.g., "Download", "Star")
@@ -254,7 +266,22 @@ class ChangelogPayload(BaseModel):
 
 
 # --- App Setup ---
-app = FastAPI(title="Teaspoon API")
+scheduler = AsyncIOScheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- STARTUP LOGIC ---
+    scheduler.add_job(async_nightly_job, CronTrigger(hour=2, minute=0))
+    scheduler.start()
+    print("Nightly Moodle Sync Scheduler Started!")
+
+    yield  # Yield control back to FastAPI to run the server
+
+    # --- SHUTDOWN LOGIC ---
+    print("Shutting down Moodle Sync Scheduler...")
+    scheduler.shutdown()
+app = FastAPI(title="Teaspoon API", lifespan=lifespan)
 
 # Robust CORS handling with regex catch-all
 allowed_origins = [
@@ -357,6 +384,135 @@ def file_stream(response):
             yield chunk
 
 
+# Moodle import helper functions
+def process_moodle_link(ics_url: str, user_id: int, db: Session):
+    """Core logic to fetch, parse, and upsert Moodle assignments."""
+    response = requests.get(ics_url, timeout=15)
+    response.raise_for_status()
+    cal = Calendar.from_ical(response.content)
+    sync_count = 0
+
+    for component in cal.walk():
+        if component.name == "VEVENT":
+            summary = str(component.get('summary', '')).strip()
+
+            # Filter out Zoom meetings or course openings
+            if summary.startswith("נפתח ב") or "קישור" in summary or "זום" in summary:
+                continue
+            if not ("נסגר" in summary or "is due" in summary):
+                continue
+
+            # Extract Deadline
+            dt_field = component.get('dtend') or component.get('dtstart')
+            if not dt_field: continue
+
+            deadline = dt_field.dt
+            if type(deadline) is not datetime:
+                deadline = datetime.combine(deadline, datetime.max.time())
+            if deadline.tzinfo:
+                deadline = deadline.astimezone(pytz.utc).replace(tzinfo=None)
+
+            # Skip past deadlines
+            if deadline < datetime.utcnow():
+                continue
+
+            # Extract Course Code
+            category = str(component.get('categories', ''))
+            if not category: continue
+            raw_code = category.split('.')[0]
+
+            course_code = raw_code.lstrip('0')
+            if len(course_code) < 6:
+                course_code = '0' + course_code
+            elif len(course_code) == 6 and not raw_code.endswith(course_code):
+                course_code = raw_code.lstrip('0')
+                course_code = '0' + course_code if len(course_code) < 7 else course_code
+
+            moodle_uid = str(component.get('uid', ''))
+            if not moodle_uid: continue
+
+            clean_title = summary.replace(" נסגרת", "").replace(" נסגר", "").replace(" is due", "").strip()
+
+            # Deduplication: Check if it exists by UID or (Code + Title)
+            existing = db.query(DBAssignment).filter(
+                or_(
+                    DBAssignment.moodle_uid == moodle_uid,
+                    and_(DBAssignment.course_code == course_code, DBAssignment.title == clean_title)
+                )
+            ).first()
+
+            if existing:
+                if not existing.moodle_uid: existing.moodle_uid = moodle_uid
+                if existing.deadline != deadline:
+                    existing.deadline = deadline
+                    sync_count += 1
+                if existing.title != clean_title:
+                    existing.title = clean_title
+            else:
+                new_assignment = DBAssignment(
+                    title=clean_title,
+                    course_code=course_code,
+                    deadline=deadline,
+                    type="assignment",
+                    description="סונכרן אוטומטית ממערכת Moodle.",
+                    created_by=user_id,
+                    moodle_uid=moodle_uid
+                )
+                db.add(new_assignment)
+                sync_count += 1
+
+    db.commit()
+    return sync_count
+
+
+def run_nightly_moodle_sync():
+    print("Starting Smart Nightly Moodle Sync...")
+    db = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+    try:
+        users_with_links = db.query(DBUser).filter(DBUser.moodle_ics_url != None).all()
+        user_coverage = {}
+        all_uncovered_courses = set()
+
+        for u in users_with_links:
+            user_courses = set(json.loads(u.courses)) if u.courses else set()
+            if user_courses:
+                user_coverage[u.id] = {"url": u.moodle_ics_url, "courses": user_courses}
+                all_uncovered_courses.update(user_courses)
+
+        selected_links = []
+
+        # Greedy algorithm: Pick links that cover the most missing courses
+        while all_uncovered_courses:
+            best_user_id, max_coverage = None, 0
+            for uid, data in user_coverage.items():
+                coverage_count = len(data["courses"].intersection(all_uncovered_courses))
+                if coverage_count > max_coverage:
+                    max_coverage = coverage_count
+                    best_user_id = uid
+
+            if not best_user_id: break
+
+            winner_data = user_coverage.pop(best_user_id)
+            selected_links.append((best_user_id, winner_data["url"]))
+            all_uncovered_courses -= winner_data["courses"]
+
+        # Execute sequentially
+        for uid, url in selected_links:
+            try:
+                process_moodle_link(url, uid, db)
+            except Exception as e:
+                db.rollback()
+            time.sleep(5)  # Polite delay for Moodle servers
+
+    finally:
+        db.close()
+        print("Nightly sync finished.")
+
+
+async def async_nightly_job():
+    await asyncio.to_thread(run_nightly_moodle_sync)
+
+
 # --- Auth Routes ---
 @app.get("/api/v2/auth/login")
 def login_via_google():
@@ -433,6 +589,7 @@ def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends
         "role": user.role,
         "totalLikesReceived": semester_likes + summary_likes + lifetime,
         "last_seen_version": user.last_seen_version or 0,
+        "moodle_ics_url": user.moodle_ics_url,
         "total_credits": getattr(user, 'total_credits', 0.0),
         "weighted_sum": getattr(user, 'weighted_sum', 0.0),
         "previous_total_credits": getattr(user, 'previous_total_credits', 0.0),
@@ -824,6 +981,26 @@ def update_assignment_grade(assignment_id: int, grade_data: GradeUpdate, current
         entry.grade = grade_data.grade
     db.commit()
     return {"success": True}
+
+
+@app.post("/api/v2/sync/moodle")
+def sync_moodle_calendar_api(req: MoodleSyncRequest, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if not req.ics_url.startswith("http") or "moodle" not in req.ics_url.lower():
+        raise HTTPException(status_code=400, detail="Invalid Moodle Calendar URL")
+
+    # Save the link to the user for the nightly background job
+    db_user = db.query(DBUser).filter(DBUser.id == current_user['id']).first()
+    if db_user and db_user.moodle_ics_url != req.ics_url:
+        db_user.moodle_ics_url = req.ics_url
+        db.commit()
+
+    try:
+        count = process_moodle_link(req.ics_url, current_user['id'], db)
+        return {"status": "success", "synced_count": count}
+    except Exception as e:
+        print(f"Manual Sync Error: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to parse Moodle calendar")
 
 
 # --- Calendar Routes ---

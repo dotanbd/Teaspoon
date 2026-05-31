@@ -50,7 +50,7 @@ const DynamicChangelogIcon = ({ name, className }: { name: string, className?: s
 // --- TypeScript Interfaces ---
 interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; likes?: number; isLikedByMe?: boolean; }
 interface Assignment { id: number; title: string; courseCode: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
-interface UserProfile { id: number; email: string; name: string; picture: string; role: string; totalLikesReceived?: number; total_credits?: number; weighted_sum?: number; previous_total_credits?: number; previous_weighted_sum?: number; binary_credits?: number; previous_binary_credits?: number; last_seen_version?: number; }
+interface UserProfile { id: number; email: string; name: string; picture: string; role: string; moodle_ics_url?: string; totalLikesReceived?: number; total_credits?: number; weighted_sum?: number; previous_total_credits?: number; previous_weighted_sum?: number; binary_credits?: number; previous_binary_credits?: number; last_seen_version?: number; }
 interface CourseSyllabus { name: string; hw_weight: number; hw_keep: number; hw_magen: boolean; ww_weight: number; ww_keep: number; ww_magen: boolean; lab_report_weight: number; lab_report_keep: number; lab_report_magen: boolean; exam_weight: number; exam_magen: boolean; }
 interface CoursesMap { [key: string]: CourseSyllabus; }
 interface AssignmentFormData { title: string; courseCode: string; courseName: string; type: string; deadline: string; time: string; recommended_date: string; recommended_time: string; }
@@ -865,6 +865,50 @@ export default function App() {
   const [editModalCourseCode, setEditModalCourseCode] = useState<string>('');
   const [courseFormData, setCourseFormData] = useState<CourseSyllabus>({ name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, lab_report_weight: 0, lab_report_keep: 0, lab_report_magen: false, exam_weight: 0, exam_magen: false });
 
+  // Moodle Sync State
+  const [showMoodleModal, setShowMoodleModal] = useState(false);
+  const [moodleUrl, setMoodleUrl] = useState('');
+  const [isSyncingMoodle, setIsSyncingMoodle] = useState(false);
+  const [moodleSyncResult, setMoodleSyncResult] = useState<{ success?: boolean, message?: string } | null>(null);
+
+  useEffect(() => {
+    if (userProfile?.moodle_ics_url && showMoodleModal) {
+      setMoodleUrl(userProfile.moodle_ics_url);
+    }
+  }, [userProfile, showMoodleModal]);
+
+  // --- Moodle Sync Handler ---
+  const handleMoodleSync = async () => {
+    if (!moodleUrl.includes('moodle') || !moodleUrl.includes('export_execute.php')) {
+      setMoodleSyncResult({ success: false, message: 'נא להזין קישור תקין של ייצוא יומן ממודל.' });
+      return;
+    }
+
+    setIsSyncingMoodle(true);
+    setMoodleSyncResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/sync/moodle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ics_url: moodleUrl.trim() })
+      });
+
+      if (!res.ok) throw new Error('Sync failed');
+
+      const data = await res.json();
+      setMoodleSyncResult({ success: true, message: `הסנכרון הושלם! ${data.synced_count} מטלות עודכנו בהצלחה.` });
+
+      // Update local state and refresh the board
+      setUserProfile(prev => prev ? { ...prev, moodle_ics_url: moodleUrl.trim() } : prev);
+      fetchAllData();
+    } catch (error) {
+      setMoodleSyncResult({ success: false, message: 'אירעה שגיאה בסינכרון. בדוק את הקישור ונסה שוב.' });
+    } finally {
+      setIsSyncingMoodle(false);
+    }
+  };
+
   // File Interaction State
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [editingFileId, setEditingFileId] = useState<number | null>(null);
@@ -877,7 +921,7 @@ export default function App() {
     e.preventDefault();
     e.stopPropagation();
 
-    // 1. Instantly open a blank tab (Crucial to bypass popup blockers)
+    // Instantly open a blank tab (Crucial to bypass popup blockers)
     const newTab = window.open('', '_blank');
 
     if (!newTab) {
@@ -888,7 +932,7 @@ export default function App() {
     try {
       setDownloadingAttachmentId(att.id);
 
-      // 2. Ask backend to mint a fresh 60-second HMAC URL
+      // Ask backend to mint a fresh 60-second HMAC URL
       const res = await fetch(`${API_BASE_URL}/attachments/${att.id}/generate-link`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -899,7 +943,7 @@ export default function App() {
 
       const data = await res.json();
 
-      // 3. Redirect the blank tab to the freshly generated API proxy URL
+      // Redirect the blank tab to the freshly generated API proxy URL
       const fullUrl = data.url.startsWith('http')
         ? data.url
         : `${API_BASE_URL.replace('/api/v2', '')}${data.url}`;
@@ -928,7 +972,7 @@ export default function App() {
   const [showIntroModal, setShowIntroModal] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(true);
 
-  // 1. Fetch Changelogs on mount
+  // Fetch Changelogs on mount
   useEffect(() => {
     const fetchChangelogs = async () => {
       try {
@@ -944,7 +988,7 @@ export default function App() {
     fetchChangelogs();
   }, []);
 
-  // 2. Check if the user needs to see the modal
+  // Check if the user needs to see the modal
   useEffect(() => {
     if (userProfile && appReleases.length > 0) {
       const currentAppVersion = Math.max(...appReleases.map(r => r.version), 0);
@@ -958,7 +1002,7 @@ export default function App() {
     }
   }, [userProfile, appReleases]);
 
-  // 3. Handler for closing the modal and updating the DB
+  // Handler for closing the modal and updating the DB
   const handleCloseIntroModal = async () => {
     setShowIntroModal(false);
 
@@ -1764,6 +1808,17 @@ export default function App() {
                 <span className="hidden sm:inline ms-2">{isCalendarCopied ? 'הקישור הועתק!' : 'סנכרון ליומן'}</span>
               </button>
 
+              {/* Moodle sync button */}
+              {token && (
+                <button
+                  onClick={() => setShowMoodleModal(true)}
+                  className="flex items-center justify-center gap-1.5 bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 px-3 py-2 rounded-xl text-sm font-bold transition-all border border-orange-200 dark:border-orange-800"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden sm:inline">סנכרון Moodle</span>
+                </button>
+              )}
+
               {/* Leaderboard */}
               {token && (
                 <button
@@ -2534,6 +2589,62 @@ export default function App() {
               </div>
               <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsAssignmentModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors">ביטול</button><button type="submit" className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">שמירה</button></div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showMoodleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+
+            <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 relative">
+              <button onClick={() => { setShowMoodleModal(false); setMoodleSyncResult(null); }} className="absolute top-4 left-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-white/50 dark:hover:bg-slate-700 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/50 rounded-xl shadow-sm flex items-center justify-center mb-4 text-orange-600 dark:text-orange-400">
+                <RefreshCw className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">סנכרון מהמודל</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">ייבוא אוטומטי של מטלות למערכת.</p>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block">קישור ליומן המודל (iCal Export URL):</label>
+                <input
+                  type="url"
+                  value={moodleUrl}
+                  onChange={(e) => setMoodleUrl(e.target.value)}
+                  placeholder="https://moodle25.technion.ac.il/calendar/export_execute.php?..."
+                  className="w-full text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-3 text-left focus:ring-2 focus:ring-orange-500 outline-none transition-all dark:text-white font-mono"
+                  dir="ltr"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  <span className="font-bold">איך משיגים את הקישור?</span> היכנסו למודל &gt; לחצו על היומן בסרגל הצד &gt; "ייצוא יומן" &gt; "כל האירועים" ו"לאחרונה ובקרוב" &gt; "קבלת כתובת URL" והעתיקו לכאן.
+                </p>
+              </div>
+
+              {moodleSyncResult && (
+                <div className={`p-3 rounded-lg text-sm font-bold flex items-center gap-2 ${moodleSyncResult.success ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                  }`}>
+                  {moodleSyncResult.success ? <CheckCircle className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+                  {moodleSyncResult.message}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex gap-3">
+              <button onClick={() => { setShowMoodleModal(false); setMoodleSyncResult(null); }} className="px-5 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-sm font-bold transition-colors">
+                סגור
+              </button>
+              <button
+                onClick={handleMoodleSync}
+                disabled={isSyncingMoodle || !moodleUrl}
+                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 dark:disabled:bg-orange-900/50 text-white px-4 py-2.5 rounded-lg font-bold transition-all shadow-sm"
+              >
+                {isSyncingMoodle ? <><RefreshCw className="w-5 h-5 animate-spin" /> מסנכרן...</> : <><Download className="w-5 h-5" /> הפעל סנכרון כעת</>}
+              </button>
+            </div>
           </div>
         </div>
       )}
