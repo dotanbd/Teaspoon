@@ -442,7 +442,9 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             moodle_uid = str(component.get('uid', ''))
             if not moodle_uid: continue
 
-            clean_title = summary.replace(" נסגרת", "").replace(" נסגר", "").replace(" is due", "").strip()
+            clean_title = (summary.replace(" נסגרת", "").replace(" נסגר", "")
+                           .replace(" is due", "").replace("הגשת ", "").replace("הגשה ", "")
+                           .replace("יש ", "").replace("את ", "").replace("תאריך ", "").strip())
 
             # Regex to extract structured assignment names
             # re.IGNORECASE makes it catch "quiz", "QUIZ", "ww", etc.
