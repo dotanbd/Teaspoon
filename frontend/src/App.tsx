@@ -49,11 +49,11 @@ const DynamicChangelogIcon = ({ name, className }: { name: string, className?: s
 
 // --- TypeScript Interfaces ---
 interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; likes?: number; isLikedByMe?: boolean; }
-interface Assignment { id: number; title: string; courseCode: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
+interface Assignment { id: number; title: string; course_code: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
 interface UserProfile { id: number; email: string; name: string; picture: string; role: string; moodle_ics_url?: string; totalLikesReceived?: number; total_credits?: number; weighted_sum?: number; previous_total_credits?: number; previous_weighted_sum?: number; binary_credits?: number; previous_binary_credits?: number; last_seen_version?: number; }
 interface CourseSyllabus { name: string; hw_weight: number; hw_keep: number; hw_magen: boolean; ww_weight: number; ww_keep: number; ww_magen: boolean; lab_report_weight: number; lab_report_keep: number; lab_report_magen: boolean; exam_weight: number; exam_magen: boolean; }
 interface CoursesMap { [key: string]: CourseSyllabus; }
-interface AssignmentFormData { title: string; courseCode: string; courseName: string; type: string; deadline: string; time: string; recommended_date: string; recommended_time: string; }
+interface AssignmentFormData { title: string; course_code: string; courseName: string; type: string; deadline: string; time: string; recommended_date: string; recommended_time: string; }
 interface CourseTheme { startBorder: string; hover: string; badgeBg: string; badgeText: string; badgeBorder: string; dot: string; }
 interface GradeSummary { earned: string; possible: string; isMagen: boolean; magenStatus: string; unconfigured: boolean; }
 
@@ -185,8 +185,8 @@ const courseThemes: CourseTheme[] = [
   { startBorder: 'border-s-pink-900', hover: 'hover:border-pink-700 dark:hover:border-pink-800', badgeBg: 'bg-pink-100 dark:bg-pink-900/70', badgeText: 'text-pink-900 dark:text-pink-50', badgeBorder: 'border-pink-300 dark:border-pink-700', dot: 'bg-pink-900' }
 ];
 
-const getCourseTheme = (courseCode: string): CourseTheme => {
-  let hash = 0; for (let i = 0; i < courseCode.length; i++) hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
+const getCourseTheme = (course_code: string): CourseTheme => {
+  let hash = 0; for (let i = 0; i < course_code.length; i++) hash = course_code.charCodeAt(i) + ((hash << 5) - hash);
   return courseThemes[Math.abs(hash) % courseThemes.length];
 };
 
@@ -208,7 +208,7 @@ const translateField = (key: string) => {
     type: 'סוג מטלה',
     deadline: 'תאריך הגשה',
     recommended_deadline: 'תאריך מומלץ)',
-    courseCode: 'קוד קורס',
+    course_code: 'קוד קורס',
     is_active: 'סטטוס',
     color: 'צבע',
     name: 'שם הקורס'
@@ -276,7 +276,7 @@ const AdminDashboard = ({
 
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string[]>([]);
 
-  const extractCourseCode = (entityId: string) => {
+  const extractcourse_code = (entityId: string) => {
     if (!entityId) return "";
     if (entityId.includes(':')) {
       const afterColon = entityId.split(':')[1];
@@ -285,15 +285,15 @@ const AdminDashboard = ({
     return entityId.trim();
   };
 
-  const pendingCourseCodes = useMemo(() => {
+  const pendingcourse_codes = useMemo(() => {
     const pendingLogs = logs.filter(log => log.status === 'PENDING');
-    const codes = pendingLogs.map(log => extractCourseCode(log.entity_id));
+    const codes = pendingLogs.map(log => extractcourse_code(log.entity_id));
     return Array.from(new Set(codes)).sort();
   }, [logs]);
 
   const displayedLogs = useMemo(() => {
     if (selectedCourseFilter.length === 0) return logs;
-    return logs.filter(log => selectedCourseFilter.includes(extractCourseCode(log.entity_id)));
+    return logs.filter(log => selectedCourseFilter.includes(extractcourse_code(log.entity_id)));
   }, [logs, selectedCourseFilter]);
 
   const toggleCourseFilter = (code: string) => {
@@ -481,7 +481,7 @@ const AdminDashboard = ({
               </div>
             )}
 
-            {pendingCourseCodes.length > 0 && (
+            {pendingcourse_codes.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
 
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 mr-2">
@@ -496,7 +496,7 @@ const AdminDashboard = ({
                 >
                   הכל
                 </button>
-                {pendingCourseCodes.map(code => (
+                {pendingcourse_codes.map(code => (
                   <button
                     key={code}
                     onClick={() => toggleCourseFilter(code)}
@@ -520,7 +520,7 @@ const AdminDashboard = ({
                 try { parsedOld = log.old_data ? JSON.parse(log.old_data) : null; } catch { parsedOld = null; }
                 try { parsedNew = log.new_data ? JSON.parse(log.new_data) : null; } catch { parsedNew = null; }
 
-                const courseCode = extractCourseCode(log.entity_id);
+                const course_code = extractcourse_code(log.entity_id);
                 const itemTitle = parsedNew?.title || parsedOld?.title || '';
 
                 return (
@@ -536,7 +536,7 @@ const AdminDashboard = ({
                         </span>
 
                         <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 tracking-wider truncate max-w-[250px] sm:max-w-sm border border-indigo-200 dark:border-indigo-800/50">
-                          {courseCode} - {coursesMap[courseCode]?.name || 'קורס לא מזוהה'}
+                          {course_code} - {coursesMap[course_code]?.name || 'קורס לא מזוהה'}
                         </span>
 
                         {log.entity_type === 'SUMMARY' && log.action === 'CREATE' && (
@@ -667,14 +667,14 @@ const AdminDashboard = ({
             {Object.keys(mergeCandidates).length === 0 ? (
               <div className="text-center py-10 text-slate-500">לא נמצאו כפילויות פוטנציאליות.</div>
             ) : (
-              Object.entries(mergeCandidates).map(([courseCode, assignments]) => {
+              Object.entries(mergeCandidates).map(([course_code, assignments]) => {
                 const manualItems = assignments.filter(a => !a.has_moodle_uid);
                 const moodleItems = assignments.filter(a => a.has_moodle_uid);
 
                 return (
-                  <div key={courseCode} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+                  <div key={course_code} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
                     <h4 className="font-black text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">
-                      קורס {courseCode} - {coursesMap[courseCode]?.name || ''}
+                      קורס {course_code} - {coursesMap[course_code]?.name || ''}
                     </h4>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -956,15 +956,15 @@ export default function App() {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [currentEditId, setCurrentEditId] = useState<number | null>(null);
   const [formData, setFormData] = useState<AssignmentFormData>({
-    title: '', courseCode: '', courseName: '', type: 'Assignment',
+    title: '', course_code: '', courseName: '', type: 'Assignment',
     deadline: '', time: '',
     recommended_date: '', recommended_time: ''
   });
 
   // Course Settings Modal State
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
-  const [editingCourseCode, setEditingCourseCode] = useState<string | null>(null);
-  const [editModalCourseCode, setEditModalCourseCode] = useState<string>('');
+  const [editingcourse_code, setEditingcourse_code] = useState<string | null>(null);
+  const [editModalcourse_code, setEditModalcourse_code] = useState<string>('');
   const [courseFormData, setCourseFormData] = useState<CourseSyllabus>({ name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, lab_report_weight: 0, lab_report_keep: 0, lab_report_magen: false, exam_weight: 0, exam_magen: false });
 
   // Moodle Sync State
@@ -1063,9 +1063,9 @@ export default function App() {
 
   // Add Course Modal State
   const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState<boolean>(false);
-  const [newCourseCode, setNewCourseCode] = useState<string>('');
+  const [newcourse_code, setNewcourse_code] = useState<string>('');
   const [newCourseName, setNewCourseName] = useState<string>('');
-  const [courseCodeError, setCourseCodeError] = useState<string>('');
+  const [course_codeError, setcourse_codeError] = useState<string>('');
   const [isAddingCourse, setIsAddingCourse] = useState<boolean>(false);
 
   // --- Changelog & Intro Modal State ---
@@ -1220,7 +1220,7 @@ export default function App() {
     const formData = new FormData();
     formData.append('filename', summaryFormData.filename);
     if (summaryFormData.file) formData.append('file', summaryFormData.file);
-    if (!editingSummaryId) formData.append('courseCode', selectedSummaryCourse);
+    if (!editingSummaryId) formData.append('course_code', selectedSummaryCourse);
 
     try {
       const url = editingSummaryId ? `${API_BASE_URL}/summaries/${editingSummaryId}` : `${API_BASE_URL}/summaries`;
@@ -1428,24 +1428,24 @@ export default function App() {
   const toggleVisibleCourse = (code: string) => setVisibleCourses(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
 
   const openCourseSettings = (code: string) => {
-    setEditingCourseCode(code);
-    setEditModalCourseCode(code);
+    setEditingcourse_code(code);
+    setEditModalcourse_code(code);
     const syl = coursesMap[code] || { name: '', hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false };
     setCourseFormData(syl); setIsCourseModalOpen(true);
   };
 
   const handleSaveCourseSettings = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!token || !editingCourseCode) return;
+    e.preventDefault(); if (!token || !editingcourse_code) return;
 
-    let finalCourseCode = editingCourseCode;
+    let finalcourse_code = editingcourse_code;
 
     // Handle course code rename for admins
-    if (editModalCourseCode !== editingCourseCode && (userProfile?.role === 'admin' || userProfile?.role === 'owner')) {
+    if (editModalcourse_code !== editingcourse_code && (userProfile?.role === 'admin' || userProfile?.role === 'owner')) {
       try {
-        const renameRes = await fetch(`${API_BASE_URL}/admin/courses/${editingCourseCode}/code`, {
+        const renameRes = await fetch(`${API_BASE_URL}/admin/courses/${editingcourse_code}/code`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ new_code: editModalCourseCode })
+          body: JSON.stringify({ new_code: editModalcourse_code })
         });
 
         if (!renameRes.ok) {
@@ -1453,35 +1453,35 @@ export default function App() {
           return;
         }
 
-        finalCourseCode = editModalCourseCode;
+        finalcourse_code = editModalcourse_code;
 
         // Cascade changes locally immediately
         setMyCourses(prev => {
-          const updated = prev.map(c => c === editingCourseCode ? editModalCourseCode : c);
+          const updated = prev.map(c => c === editingcourse_code ? editModalcourse_code : c);
           syncCourses(updated); // Resync to the DB!
           return updated;
         });
-        setVisibleCourses(prev => prev.map(c => c === editingCourseCode ? editModalCourseCode : c));
-        setAssignments(prev => prev.map(a => a.courseCode === editingCourseCode ? { ...a, courseCode: editModalCourseCode } : a));
+        setVisibleCourses(prev => prev.map(c => c === editingcourse_code ? editModalcourse_code : c));
+        setAssignments(prev => prev.map(a => a.course_code === editingcourse_code ? { ...a, course_code: editModalcourse_code } : a));
 
         setCoursesMap(prev => {
           const newMap = { ...prev };
-          newMap[editModalCourseCode] = courseFormData;
-          delete newMap[editingCourseCode];
+          newMap[editModalcourse_code] = courseFormData;
+          delete newMap[editingcourse_code];
           return newMap;
         });
-        setEditingCourseCode(editModalCourseCode);
+        setEditingcourse_code(editModalcourse_code);
       } catch {
         alert("שגיאת תקשורת בעת שינוי מספר הקורס.");
         return;
       }
     } else {
-      setCoursesMap(prev => ({ ...prev, [editingCourseCode]: courseFormData }));
+      setCoursesMap(prev => ({ ...prev, [editingcourse_code]: courseFormData }));
     }
 
     setIsCourseModalOpen(false);
     const payload = { ...courseFormData, hw_drop: courseFormData.hw_keep, ww_drop: courseFormData.ww_keep };
-    try { await fetch(`${API_BASE_URL}/courses/${finalCourseCode}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch { }
+    try { await fetch(`${API_BASE_URL}/courses/${finalcourse_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch { }
   };
 
   const toggleCompletion = async (id: number) => {
@@ -1509,7 +1509,7 @@ export default function App() {
     setIsEditing(false);
     setCurrentEditId(null);
     setFormData({
-      title: '', courseCode: '', courseName: '', type: 'Assignment',
+      title: '', course_code: '', courseName: '', type: 'Assignment',
       deadline: '', time: '',
       recommended_date: '', recommended_time: ''
     });
@@ -1525,8 +1525,8 @@ export default function App() {
 
     setFormData({
       title: assignment.title,
-      courseCode: assignment.courseCode,
-      courseName: coursesMap[assignment.courseCode]?.name || '',
+      course_code: assignment.course_code,
+      courseName: coursesMap[assignment.course_code]?.name || '',
       type: assignment.type,
       deadline: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
@@ -1544,20 +1544,20 @@ export default function App() {
 
     const payload = {
       title: formData.title,
-      courseCode: formData.courseCode,
+      course_code: formData.course_code,
       type: formData.type,
       deadline: new Date(`${formData.deadline}T${formData.time || '23:59'}:00`).toISOString(),
       recommended_deadline: rec_deadline
     };
 
     try {
-      if (!coursesMap[formData.courseCode]) {
-        await fetch(`${API_BASE_URL}/courses/${formData.courseCode}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: formData.courseName, hw_weight: 0, hw_drop: 0, ww_weight: 0, ww_drop: 0, exam_weight: 0, hw_magen: false, ww_magen: false, exam_magen: false }) });
+      if (!coursesMap[formData.course_code]) {
+        await fetch(`${API_BASE_URL}/courses/${formData.course_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: formData.courseName, hw_weight: 0, hw_drop: 0, ww_weight: 0, ww_drop: 0, exam_weight: 0, hw_magen: false, ww_magen: false, exam_magen: false }) });
       }
       await fetch(`${API_BASE_URL}/assignments${isEditing ? `/${currentEditId}` : ''}`, { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
       fetchAllData();
       setIsAssignmentModalOpen(false);
-      if (!myCourses.includes(payload.courseCode)) handleAddCourse(payload.courseCode);
+      if (!myCourses.includes(payload.course_code)) handleAddCourse(payload.course_code);
     } catch { alert("שגיאה בשמירה."); }
   };
 
@@ -1575,7 +1575,7 @@ export default function App() {
       exam_weight: 0, exam_magen: false
     };
 
-    const courseAssignments = assignments.filter(a => a.courseCode === code);
+    const courseAssignments = assignments.filter(a => a.course_code === code);
     if (courseAssignments.length === 0 || !courseAssignments.some(a => a.grade !== null)) return null;
 
     const processCategory = (type: string, weight: number, keepCount: number) => {
@@ -1768,7 +1768,7 @@ export default function App() {
 
   const filteredAssignments = assignments.filter(a => {
     const activeCourses = visibleCourses.length > 0 ? visibleCourses : myCourses;
-    if (!activeCourses.includes(a.courseCode)) return false;
+    if (!activeCourses.includes(a.course_code)) return false;
     if (activeTypeFilter !== 'All' && a.type !== activeTypeFilter) return false;
     if (hideCompleted && a.isCompleted) return false;
 
@@ -2258,7 +2258,7 @@ export default function App() {
                   const code = typeof c === 'string' ? c : (c as any).code; // Safety check in case myCourses holds objects
 
                   // 1. Get assignments for this specific course
-                  const courseAssignments = assignments.filter(a => a.courseCode === code && a.type !== 'other');
+                  const courseAssignments = assignments.filter(a => a.course_code === code && a.type !== 'other');
 
                   let courseRequired = courseAssignments.length;
                   let courseCompleted = courseAssignments.filter(a => a.isCompleted).length;
@@ -2479,7 +2479,7 @@ export default function App() {
                     : (
                       <div className={viewMode === 'cards' ? "grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 content-start" : "flex flex-col gap-4 flex-1 content-start"}>
                         {filteredAssignments.map((assignment) => {
-                          const courseTheme = getCourseTheme(assignment.courseCode);
+                          const courseTheme = getCourseTheme(assignment.course_code);
                           const isList = viewMode === 'list';
 
                           return (
@@ -2503,7 +2503,7 @@ export default function App() {
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
                                     <div className={`w-2 h-2 rounded-sm ${courseTheme.dot}`}></div>
-                                    <span>{coursesMap[assignment.courseCode]?.name} <span dir="ltr" className="opacity-60">({assignment.courseCode})</span></span>
+                                    <span>{coursesMap[assignment.course_code]?.name} <span dir="ltr" className="opacity-60">({assignment.course_code})</span></span>
                                     <span className="hidden sm:inline opacity-30">•</span>
                                     <span className={`flex items-center gap-1.5 ${(() => {
                                       if (assignment.isCompleted) return '';
@@ -2653,8 +2653,8 @@ export default function App() {
                   <select
                     required
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-right appearance-none"
-                    value={formData.courseCode}
-                    onChange={e => setFormData({ ...formData, courseCode: e.target.value, courseName: coursesMap[e.target.value]?.name || formData.courseName })}
+                    value={formData.course_code}
+                    onChange={e => setFormData({ ...formData, course_code: e.target.value, courseName: coursesMap[e.target.value]?.name || formData.courseName })}
                   >
                     <option value="" disabled>{myCourses.length === 0 ? 'יש להוסיף קורסים תחילה' : 'בחר קורס...'}</option>
                     {myCourses.map(code => (
@@ -2759,46 +2759,46 @@ export default function App() {
             <form onSubmit={async (e) => {
               e.preventDefault();
               const codeRegex = /^\d{3}0\d{3}$/;
-              if (!codeRegex.test(newCourseCode)) { setCourseCodeError('קוד קורס חייב להיות בפורמט: XXX0XXX (לדוגמה: 1150204)'); return; }
-              if (!newCourseName.trim()) { setCourseCodeError('שם הקורס לא יכול להיות ריק'); return; }
-              if (myCourses.includes(newCourseCode)) { setCourseCodeError('קורס זה כבר קיים, ניתן לערוך אותו מרשימת "הקורסים שלי"'); return; }
+              if (!codeRegex.test(newcourse_code)) { setcourse_codeError('קוד קורס חייב להיות בפורמט: XXX0XXX (לדוגמה: 1150204)'); return; }
+              if (!newCourseName.trim()) { setcourse_codeError('שם הקורס לא יכול להיות ריק'); return; }
+              if (myCourses.includes(newcourse_code)) { setcourse_codeError('קורס זה כבר קיים, ניתן לערוך אותו מרשימת "הקורסים שלי"'); return; }
 
               // Lock the form and clear previous errors
               setIsAddingCourse(true);
-              setCourseCodeError('');
+              setcourse_codeError('');
 
               try {
                 // If it's a new course, create it in the database first
-                if (!coursesMap[newCourseCode]) {
+                if (!coursesMap[newcourse_code]) {
                   if (token) {
                     const newSyl = { name: newCourseName, hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, exam_weight: 0, exam_magen: false, lab_report_weight: 0, lab_report_keep: 0, lab_report_magen: false };
-                    const res = await fetch(`${API_BASE_URL}/courses/${newCourseCode}`, {
+                    const res = await fetch(`${API_BASE_URL}/courses/${newcourse_code}`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                       body: JSON.stringify({ ...newSyl, hw_drop: 0, ww_drop: 0 })
                     });
 
                     if (!res.ok) throw new Error("Course creation failed");
-                    setCoursesMap(prev => ({ ...prev, [newCourseCode]: newSyl }));
+                    setCoursesMap(prev => ({ ...prev, [newcourse_code]: newSyl }));
                   } else {
                     // Guest Mode Fallback
-                    setCoursesMap(prev => ({ ...prev, [newCourseCode]: { name: newCourseName, hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, lab_report_weight: 0, lab_report_keep: 0, lab_report_magen: false, exam_weight: 0, exam_magen: false } }));
+                    setCoursesMap(prev => ({ ...prev, [newcourse_code]: { name: newCourseName, hw_weight: 0, hw_keep: 0, hw_magen: false, ww_weight: 0, ww_keep: 0, ww_magen: false, lab_report_weight: 0, lab_report_keep: 0, lab_report_magen: false, exam_weight: 0, exam_magen: false } }));
                   }
                 }
 
                 // Link the course to the user using our pessimistic function
-                const success = await handleAddCourse(newCourseCode);
+                const success = await handleAddCourse(newcourse_code);
 
                 if (success) {
                   // Only close the modal if the server said YES
                   setIsAddCourseModalOpen(false);
-                  setNewCourseCode('');
+                  setNewcourse_code('');
                   setNewCourseName('');
                 } else {
-                  setCourseCodeError('בעיית תקשורת בשמירת הקורס. אנא נסה שוב.');
+                  setcourse_codeError('בעיית תקשורת בשמירת הקורס. אנא נסה שוב.');
                 }
               } catch (err) {
-                setCourseCodeError('שגיאה ביצירת הקורס בשרת. אנא נסה שוב.');
+                setcourse_codeError('שגיאה ביצירת הקורס בשרת. אנא נסה שוב.');
               } finally {
                 // Unlock the form
                 setIsAddingCourse(false);
@@ -2806,13 +2806,13 @@ export default function App() {
             }} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">קוד קורס</label>
-                <input required type="text" placeholder="לדוגמה: 1150204" maxLength={7} className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={newCourseCode} onChange={(e) => { setNewCourseCode(e.target.value.toUpperCase()); setCourseCodeError(''); }} />
+                <input required type="text" placeholder="לדוגמה: 1150204" maxLength={7} className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={newcourse_code} onChange={(e) => { setNewcourse_code(e.target.value.toUpperCase()); setcourse_codeError(''); }} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">שם הקורס</label>
-                <input required type="text" placeholder="לדוגמה: חשבון 1" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={newCourseName} onChange={(e) => { setNewCourseName(e.target.value); setCourseCodeError(''); }} />
+                <input required type="text" placeholder="לדוגמה: חשבון 1" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={newCourseName} onChange={(e) => { setNewCourseName(e.target.value); setcourse_codeError(''); }} />
               </div>
-              {courseCodeError && <p className="text-sm text-red-600 dark:text-red-400">{courseCodeError}</p>}
+              {course_codeError && <p className="text-sm text-red-600 dark:text-red-400">{course_codeError}</p>}
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
@@ -2851,8 +2851,8 @@ export default function App() {
                     type="text"
                     maxLength={7}
                     className={`w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg outline-none text-slate-800 dark:text-slate-100 ${(userProfile?.role === 'admin' || userProfile?.role === 'owner') ? 'focus:ring-2 focus:ring-blue-500' : 'opacity-70 cursor-not-allowed'}`}
-                    value={editModalCourseCode}
-                    onChange={e => setEditModalCourseCode(e.target.value.toUpperCase())}
+                    value={editModalcourse_code}
+                    onChange={e => setEditModalcourse_code(e.target.value.toUpperCase())}
                     disabled={!(userProfile?.role === 'admin' || userProfile?.role === 'owner')}
                     title={!(userProfile?.role === 'admin' || userProfile?.role === 'owner') ? "רק מנהלים יכולים לערוך מספרי קורסים" : ""}
                   />
