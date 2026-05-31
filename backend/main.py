@@ -460,6 +460,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     moodle_uid=moodle_uid
                 )
                 db.add(new_assignment)
+                logging.info(f"New Assignment: {new_assignment.title} ({new_assignment.courseCode})")
                 sync_count += 1
 
     db.commit()
