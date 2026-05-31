@@ -6,7 +6,7 @@ import {
   XCircle, Calculator, Shield, Settings, ChevronDown,
   Heart, Users, ShieldAlert, ArrowLeft, ListChecks, Ban,
   Trophy, LayoutGrid, List, Download, UploadCloud, Loader2,
-  Star, Zap, Wrench, Sparkles
+  Star, Zap, Wrench, Sparkles, GitMerge
 } from 'lucide-react';
 
 // --- Production/Development API Configuration ---
@@ -235,7 +235,7 @@ const AdminDashboard = ({
   coursesMap: CoursesMap,
   userProfile: any
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'changelogs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'changelogs' | 'merges'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -246,6 +246,10 @@ const AdminDashboard = ({
 
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
+
+  // Merge management state
+  const [mergeCandidates, setMergeCandidates] = useState<Record<string, any[]>>({});
+  const [mergeSelection, setMergeSelection] = useState<{ targetId: number | null, sourceId: number | null }>({ targetId: null, sourceId: null });
 
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
@@ -310,6 +314,9 @@ const AdminDashboard = ({
       } else if (activeTab === 'changelogs') {
         const res = await fetch(`${API_BASE_URL}/changelogs`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) setAppReleases(await res.json());
+      } else if (activeTab === 'merges') {
+        const res = await fetch(`${API_BASE_URL}/admin/assignments/merge-candidates`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) setMergeCandidates(await res.json());
       }
     } catch (e) {
       console.error(e);
@@ -377,6 +384,9 @@ const AdminDashboard = ({
         </button>
         <button onClick={() => setActiveTab('logs')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'logs' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
           <ListChecks className="w-4 h-4" /> אישורים ממתינים {logs.length > 0 && `(${logs.length})`}
+        </button>
+        <button onClick={() => setActiveTab('merges')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'merges' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+          <GitMerge className="w-4 h-4" /> מיזוג כפילויות
         </button>
         {userProfile?.role === 'owner' && (
           <button onClick={() => setActiveTab('changelogs')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'changelogs' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
@@ -642,6 +652,98 @@ const AdminDashboard = ({
                 );
               })}
             </div>
+          </div>
+        ) : activeTab === 'merges' ? (
+          <div className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-200 dark:border-blue-800/50">
+              <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-1">
+                <GitMerge className="w-5 h-5" /> מיזוג מטלות ידני
+              </h3>
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                כאן תוכל למזג מטלה שהגיעה ממודל לתוך מטלה קיימת שהוזנה ידנית. פעולה זו <span className="font-bold">שומרת על ה-ID המקורי</span> כך שסטטוסים וציונים של סטודנטים לא יאבדו!
+              </p>
+            </div>
+
+            {Object.keys(mergeCandidates).length === 0 ? (
+              <div className="text-center py-10 text-slate-500">לא נמצאו כפילויות פוטנציאליות.</div>
+            ) : (
+              Object.entries(mergeCandidates).map(([courseCode, assignments]) => {
+                const manualItems = assignments.filter(a => !a.has_moodle_uid);
+                const moodleItems = assignments.filter(a => a.has_moodle_uid);
+
+                return (
+                  <div key={courseCode} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+                    <h4 className="font-black text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">
+                      קורס {courseCode} - {coursesMap[courseCode]?.name || ''}
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* TARGET: Manual Assignments */}
+                      <div>
+                        <div className="text-xs font-bold text-slate-500 mb-2">בחר מטלת יעד (תשמור על ה-ID שלה):</div>
+                        <div className="space-y-2">
+                          {manualItems.map(item => (
+                            <button
+                              key={item.id}
+                              onClick={() => setMergeSelection(prev => ({ ...prev, targetId: item.id }))}
+                              className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.targetId === item.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'}`}
+                            >
+                              <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
+                              <div className="text-xs text-slate-500 mt-1">{new Date(item.deadline).toLocaleString('he-IL')}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* SOURCE: Moodle Assignments */}
+                      <div>
+                        <div className="text-xs font-bold text-slate-500 mb-2">בחר מטלת מקור (תימחק לאחר המיזוג):</div>
+                        <div className="space-y-2">
+                          {moodleItems.map(item => (
+                            <button
+                              key={item.id}
+                              onClick={() => setMergeSelection(prev => ({ ...prev, sourceId: item.id }))}
+                              className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.sourceId === item.id ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-red-300'}`}
+                            >
+                              <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
+                              <div className="text-xs text-slate-500 mt-1">{new Date(item.deadline).toLocaleString('he-IL')}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Execute Merge Button */}
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        disabled={!mergeSelection.targetId || !mergeSelection.sourceId}
+                        onClick={async () => {
+                          if (!window.confirm('האם אתה בטוח? פעולה זו תחליף את הדדליין של המטלה המקורית ותמחק את הכפילות.')) return;
+                          try {
+                            const res = await fetch(`${API_BASE_URL}/admin/assignments/merge`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                              body: JSON.stringify({ target_id: mergeSelection.targetId, source_id: mergeSelection.sourceId })
+                            });
+                            if (res.ok) {
+                              setMergeSelection({ targetId: null, sourceId: null });
+                              fetchAdminData(); // Refresh the lists
+                            } else {
+                              alert('שגיאה במיזוג.');
+                            }
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }}
+                        className="bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <GitMerge className="w-4 h-4" /> בצע מיזוג
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         ) : (
           <div className="space-y-6">

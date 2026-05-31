@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse
+from collections import defaultdict
 import mimetypes
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Table, update, Float
@@ -253,6 +254,10 @@ class UpdateVersionRequest(BaseModel):
 class MoodleSyncRequest(BaseModel):
     ics_url: str
 
+class MergeAssignmentsRequest(BaseModel):
+    target_id: int # The original manual assignment (KEEP)
+    source_id: int
+
 # --- CHANGELOG SCHEMAS ---
 class ChangelogFeature(BaseModel):
     icon: str # We store the name of the Lucide icon (e.g., "Download", "Star")
@@ -443,7 +448,6 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                            .replace("יש להגיש", "").replace(" את ", "").replace("תאריך ", "").strip())
 
             # Regex to extract structured assignment names
-            # re.IGNORECASE makes it catch "quiz", "QUIZ", "ww", etc.
             pattern = r"(תרגיל|סימולציה|גיליון|גליון|Quiz|HW|WW).*?(\d+)"
             match = re.search(pattern, clean_title, re.IGNORECASE)
 
@@ -462,12 +466,27 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                 clean_title = f"{keyword} {number}"
 
             # Deduplication: Check if it exists by UID or (Code + Title)
-            existing = db.query(DBAssignment).filter(
-                or_(
-                    DBAssignment.moodle_uid == moodle_uid,
-                    and_(DBAssignment.courseCode == course_code, DBAssignment.title == clean_title)
-                )
-            ).first()
+            existing = db.query(DBAssignment).filter(DBAssignment.moodle_uid == moodle_uid).first()
+
+            if not existing:
+                # 2. Heuristic Search: Find manual assignments in the same course (no moodle_uid yet)
+                manual_candidates = db.query(DBAssignment).filter(
+                    DBAssignment.courseCode == course_code,
+                    DBAssignment.moodle_uid == None
+                ).all()
+
+                for cand in manual_candidates:
+                    delta_days = abs((cand.deadline - deadline).days)
+                    if delta_days <= 4:
+                        # Extract the first number found in both titles
+                        cand_num_match = re.search(r"(\d+)", str(cand.title))
+                        new_num_match = re.search(r"(\d+)", clean_title)
+
+                        if (not new_num_match or cand_num_match and new_num_match and cand_num_match.group(1) ==
+                                new_num_match.group(1)):
+                            existing = cand
+                            print(f"DEBUG [AUTO-MERGE]: Merged Moodle '{clean_title}' into Manual '{cand.title}'")
+                            break
 
             if existing:
                 if not existing.moodle_uid: existing.moodle_uid = moodle_uid
@@ -1685,6 +1704,61 @@ def reject_and_block(log_id: int, admin: DBUser = Depends(get_admin_user), db: S
     db.delete(log)
     db.commit()
     return {"success": True, "message": "Change reverted and user restricted."}
+
+
+@app.get("/api/v2/admin/assignments/merge-candidates")
+def get_merge_candidates(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Finds courses that have both manual assignments and Moodle assignments for potential merging."""
+    if current_user.get('role') not in ['owner', 'admin']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get assignments from the last 60 days and future
+    recent_limit = datetime.utcnow() - timedelta(days=60)
+    assignments = db.query(DBAssignment).filter(DBAssignment.deadline >= recent_limit).all()
+
+    grouped = defaultdict(list)
+    for a in assignments:
+        grouped[a.courseCode].append({
+            "id": a.id,
+            "title": a.title,
+            "deadline": a.deadline.isoformat(),
+            "has_moodle_uid": bool(a.moodle_uid),
+            "moodle_uid": a.moodle_uid
+        })
+
+    # Only return courses that actually have a mix of Moodle and Manual assignments
+    res = {}
+    for code, items in grouped.items():
+        has_moodle = any(i['has_moodle_uid'] for i in items)
+        has_manual = any(not i['has_moodle_uid'] for i in items)
+        if has_moodle and has_manual and len(items) > 1:
+            res[code] = items
+
+    return res
+
+
+@app.post("/api/v2/admin/assignments/merge")
+def merge_assignments_manual(req: MergeAssignmentsRequest, db: Session = Depends(get_db),
+                             current_user: dict = Depends(get_current_user)):
+    """Merges a Moodle assignment into a manual one, preserving internal ID and statuses."""
+    if current_user.get('role') not in ['owner', 'admin']:
+        raise HTTPException(status_code=403)
+
+    target = db.query(DBAssignment).filter(DBAssignment.id == req.target_id).first()
+    source = db.query(DBAssignment).filter(DBAssignment.id == req.source_id).first()
+
+    if not target or not source:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    # Transfer Moodle properties to the target
+    target.moodle_uid = source.moodle_uid
+    target.deadline = source.deadline  # Trust Moodle's deadline
+
+    # Delete the duplicate source (Orphans from the source are fine, as it's the duplicate)
+    db.delete(source)
+    db.commit()
+
+    return {"status": "success"}
 
 
 @app.get("/api/v2/users/leaderboard")
