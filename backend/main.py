@@ -3,6 +3,7 @@ import uuid
 import json
 import httpx
 import jwt
+import re
 import hmac
 import hashlib
 import boto3
@@ -395,7 +396,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
     for component in cal.walk():
         if component.name == "VEVENT":
             summary = str(component.get('summary', '')).strip()
-            deadline_keywords = ['הגשה', 'הגשת', 'להגיש', 'גליון', 'גיליון', 'תרגיל', 'נסגר', 'is due']
+            deadline_keywords = ['הגשה', 'הגשת', 'להגיש', 'גליון', 'גיליון', 'תרגיל', 'נסגר', 'is due', 'Quiz']
 
             # Filter out Zoom meetings or course openings
             if summary.startswith("נפתח ב") or "קישור" in summary or "זום" in summary:
@@ -418,10 +419,18 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             if deadline < datetime.utcnow():
                 continue
 
-            # Extract Course Code
-            category = str(component.get('categories', ''))
-            if not category: continue
-            raw_code = category.split('.')[0]
+            # Extract Category (Technion Moodle Format)
+            category_prop = component.get('categories')
+            if not category_prop:
+                continue
+
+            # Properly extract the raw text from the icalendar vCategory object
+            try:
+                category_str = category_prop.to_ical().decode('utf-8')
+            except AttributeError:
+                category_str = str(category_prop)
+
+            raw_code = category_str.split('.')[0]  # e.g. '00440252'
 
             course_code = raw_code.lstrip('0')
             if len(course_code) < 6:
@@ -434,6 +443,25 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             if not moodle_uid: continue
 
             clean_title = summary.replace(" נסגרת", "").replace(" נסגר", "").replace(" is due", "").strip()
+
+            # Regex to extract structured assignment names
+            # re.IGNORECASE makes it catch "quiz", "QUIZ", "ww", etc.
+            pattern = r"(תרגיל|גיליון|גליון|Quiz|WW).*?(\d+)"
+            match = re.search(pattern, clean_title, re.IGNORECASE)
+
+            if match:
+                keyword = match.group(1)
+
+                # Optional: Standardize spelling (make "גליון" -> "גיליון" and capitalize English words)
+                if keyword == "גליון":
+                    keyword = "גיליון"
+                elif keyword.lower() == "quiz":
+                    keyword = "Quiz"
+                elif keyword.lower() == "ww":
+                    keyword = "WW"
+
+                number = match.group(2)
+                clean_title = f"{keyword} {number}"
 
             # Deduplication: Check if it exists by UID or (Code + Title)
             existing = db.query(DBAssignment).filter(
