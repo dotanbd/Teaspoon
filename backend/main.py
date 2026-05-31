@@ -476,8 +476,6 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                 if existing.deadline != deadline:
                     existing.deadline = deadline
                     sync_count += 1
-                if existing.title != clean_title:
-                    existing.title = clean_title
                 if getattr(existing, 'courseCode', existing.course_code) != course_code:
                     if hasattr(existing, 'courseCode'):
                         existing.courseCode = course_code
