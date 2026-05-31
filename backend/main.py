@@ -489,7 +489,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     # Now we can safely subtract them!
                     delta_days = abs((cand_deadline_dt - deadline).days)
 
-                    if delta_days <= 4:
+                    if delta_days <= 10:
                         # Extract the first number found in both titles
                         cand_num_match = re.search(r"(\d+)", str(cand.title))
                         new_num_match = re.search(r"(\d+)", clean_title)
