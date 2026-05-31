@@ -133,7 +133,7 @@ class DBAssignment(Base):
     id = Column(Integer, primary_key=True, index=True)
     moodle_uid = Column(String(255), nullable=True)
     title = Column(String)
-    courseCode = Column(String, ForeignKey("courses.code"))
+    course_code = Column(String, ForeignKey("courses.code"))
     type = Column(String)
     deadline = Column(String)
     recommended_deadline = Column(String, nullable=True)
@@ -177,7 +177,7 @@ class DBAuditLog(Base):
 class DBSummary(Base):
     __tablename__ = "summaries"
     id = Column(Integer, primary_key=True, index=True)
-    courseCode = Column(String, ForeignKey("courses.code", ondelete="CASCADE"))
+    course_code = Column(String, ForeignKey("courses.code", ondelete="CASCADE"))
     uploader_id = Column(Integer, ForeignKey("users.id"))
     filename = Column(String)
     object_name = Column(String)  # The MinIO S3 key
@@ -207,7 +207,7 @@ Base.metadata.create_all(bind=engine)
 # --- Pydantic Schemas ---
 class AssignmentCreate(BaseModel):
     title: str
-    courseCode: str
+    course_code: str
     type: str
     deadline: str
     recommended_deadline: Optional[str] = None
@@ -471,7 +471,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
             if not existing:
                 # 2. Heuristic Search: Find manual assignments in the same course (no moodle_uid yet)
                 manual_candidates = db.query(DBAssignment).filter(
-                    DBAssignment.courseCode == course_code,
+                    DBAssignment.course_code == course_code,
                     DBAssignment.moodle_uid == None
                 ).all()
 
@@ -495,16 +495,16 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                 if existing.deadline != deadline:
                     existing.deadline = deadline
                     sync_count += 1
-                if getattr(existing, 'courseCode', existing.course_code) != course_code:
-                    if hasattr(existing, 'courseCode'):
-                        existing.courseCode = course_code
+                if getattr(existing, 'course_code', existing.course_code) != course_code:
+                    if hasattr(existing, 'course_code'):
+                        existing.course_code = course_code
                     else:
                         existing.course_code = course_code
             else:
                 print(f"DEBUG [NEW]: {course_code} | '{clean_title}' | Deadline: {deadline}")
                 new_assignment = DBAssignment(
                     title=clean_title,
-                    courseCode=course_code,
+                    course_code=course_code,
                     deadline=deadline,
                     type="Assignment",
                     user_id=user_id,
@@ -745,7 +745,7 @@ def update_course_code(old_code: str, payload: CourseCodeUpdate, admin: DBUser =
     db.flush()  # Pushes the new course to the DB instantly, keeping the transaction open
 
     # Repoint all assignments to the new course code
-    db.query(DBAssignment).filter(DBAssignment.courseCode == old_code).update({"courseCode": new_code})
+    db.query(DBAssignment).filter(DBAssignment.course_code == old_code).update({"course_code": new_code})
 
     # Safely repoint the many-to-many association table
     db.execute(
@@ -800,9 +800,9 @@ def get_assignments(optional_user: dict = Depends(get_optional_user), db: Sessio
         current_user_id = optional_user["id"]
         assignments = query.filter(
             or_(
-                DBAssignment.courseCode != "9990999",
+                DBAssignment.course_code != "9990999",
                 and_(
-                    DBAssignment.courseCode == "9990999",
+                    DBAssignment.course_code == "9990999",
                     DBAssignment.user_id == current_user_id
                 )
             )
@@ -814,7 +814,7 @@ def get_assignments(optional_user: dict = Depends(get_optional_user), db: Sessio
 
     else:
         # Guests only see public courses, never the private course
-        assignments = query.filter(DBAssignment.courseCode != "9990999").all()
+        assignments = query.filter(DBAssignment.course_code != "9990999").all()
         user_data = {}
 
     results = []
@@ -851,7 +851,7 @@ def get_assignments(optional_user: dict = Depends(get_optional_user), db: Sessio
         results.append({
             "id": a.id,
             "title": a.title,
-            "courseCode": a.courseCode,
+            "course_code": a.course_code,
             "type": a.type,
             "deadline": a.deadline,
             "recommended_deadline": getattr(a, 'recommended_deadline', None),
@@ -875,20 +875,20 @@ def create_assignment(assignment: AssignmentCreate, current_user: dict = Depends
     db.flush()
 
     # Send for admin approval if not owner or admin
-    if user and user.role not in ["admin", "owner"] and assignment.courseCode != "9990999":
+    if user and user.role not in ["admin", "owner"] and assignment.course_code != "9990999":
         audit_log = DBAuditLog(
             user_id=user.id,
             action="CREATE",
             entity_type="ASSIGNMENT",
-            entity_id=f"{new_assignment.id}:{new_assignment.courseCode} - {new_assignment.title}",
+            entity_id=f"{new_assignment.id}:{new_assignment.course_code} - {new_assignment.title}",
             new_data=json.dumps(assignment.dict()),
             status="PENDING"
         )
         db.add(audit_log)
 
-    db_course = db.query(DBCourse).filter(DBCourse.code == assignment.courseCode).first()
+    db_course = db.query(DBCourse).filter(DBCourse.code == assignment.course_code).first()
     if db_course:
-        touch_course_vitality(db, assignment.courseCode)
+        touch_course_vitality(db, assignment.course_code)
 
     db.commit()
     db.refresh(new_assignment)
@@ -905,7 +905,7 @@ def update_assignment(assignment_id: int, assignment: AssignmentCreate,
 
     old_data = {
         "title": db_assignment.title,
-        "courseCode": db_assignment.courseCode,
+        "course_code": db_assignment.course_code,
         "type": db_assignment.type,
         "deadline": db_assignment.deadline,
         "recommended_deadline": getattr(db_assignment, 'recommended_deadline', None)
@@ -918,21 +918,21 @@ def update_assignment(assignment_id: int, assignment: AssignmentCreate,
     # Send for admin approval if not owner or admin
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
     is_trusted = user and user.role in ["admin", "owner"] or user.id == db_assignment.user_id
-    if not is_trusted and assignment.courseCode != "9990999":
+    if not is_trusted and assignment.course_code != "9990999":
         audit_log = DBAuditLog(
             user_id=user.id,
             action="UPDATE",
             entity_type="ASSIGNMENT",
-            entity_id=f"{db_assignment.id}:{db_assignment.courseCode} - {db_assignment.title}",
+            entity_id=f"{db_assignment.id}:{db_assignment.course_code} - {db_assignment.title}",
             old_data=json.dumps(old_data),
             new_data=json.dumps(assignment.dict()),
             status="PENDING"  # Stored for Admin Approval
         )
         db.add(audit_log)
 
-    db_course = db.query(DBCourse).filter(DBCourse.code == assignment.courseCode).first()
+    db_course = db.query(DBCourse).filter(DBCourse.code == assignment.course_code).first()
     if db_course:
-        touch_course_vitality(db, assignment.courseCode)
+        touch_course_vitality(db, assignment.course_code)
 
     db.commit()
     db.refresh(db_assignment)
@@ -968,12 +968,12 @@ def delete_assignment(assignment_id: int, current_user: dict = Depends(get_write
     is_trusted = user and user.role in ["admin", "owner"] or user.id == db_assignment.user_id
 
     # If untrusted, just create the ticket and leave the data alone!
-    if not is_trusted and db_assignment.courseCode != "9990999":
+    if not is_trusted and db_assignment.course_code != "9990999":
         audit_log = DBAuditLog(
             user_id=user.id,
             action="DELETE",
             entity_type="ASSIGNMENT",
-            entity_id=f"{db_assignment.id}:{db_assignment.courseCode} - {db_assignment.title}",
+            entity_id=f"{db_assignment.id}:{db_assignment.course_code} - {db_assignment.title}",
             old_data="{}",  # No snapshot needed, the data is still safely in the DB!
             status="PENDING"
         )
@@ -1001,9 +1001,9 @@ def delete_assignment(assignment_id: int, current_user: dict = Depends(get_write
 
     db.delete(db_assignment)
 
-    db_course = db.query(DBCourse).filter(DBCourse.code == db_assignment.courseCode).first()
+    db_course = db.query(DBCourse).filter(DBCourse.code == db_assignment.course_code).first()
     if db_course:
-        touch_course_vitality(db, str(db_assignment.courseCode))
+        touch_course_vitality(db, str(db_assignment.course_code))
 
     db.commit()
     return {"success": True}
@@ -1077,10 +1077,10 @@ def get_calendar_feed(token: Optional[str] = None, courses: Optional[str] = None
     if not target_courses:
         assignments = []
     else:
-        assignments = db.query(DBAssignment).filter(DBAssignment.courseCode.in_(target_courses)).all()
+        assignments = db.query(DBAssignment).filter(DBAssignment.course_code.in_(target_courses)).all()
 
     # Build a lookup so each event shows its own course name
-    course_codes = {a.courseCode for a in assignments if a.courseCode}
+    course_codes = {a.course_code for a in assignments if a.course_code}
     course_map = {
         c.code: c.name
         for c in db.query(DBCourse).filter(DBCourse.code.in_(course_codes)).all()
@@ -1101,7 +1101,7 @@ def get_calendar_feed(token: Optional[str] = None, courses: Optional[str] = None
     for a in assignments:
         if not a.deadline:
             continue
-        if a.courseCode == "9990999" and a.user_id != user_id:
+        if a.course_code == "9990999" and a.user_id != user_id:
             continue
         try:
             # Parse the deadline into a real datetime so we can shift it
@@ -1123,9 +1123,9 @@ def get_calendar_feed(token: Optional[str] = None, courses: Optional[str] = None
 
         title = (a.title or "Assignment").replace("\r", "").replace("\n", " ")
         # Resolve THIS assignment's course name individually
-        course_name = course_map.get(a.courseCode, a.courseCode or "")
-        course_label = f"{course_name}" if course_name and course_name != a.courseCode else (a.courseCode or "")
-        desc = f"סוג: {a.type} | קורס: {course_label} - {a.courseCode}".replace("\r", "").replace("\n", " ")
+        course_name = course_map.get(a.course_code, a.course_code or "")
+        course_label = f"{course_name}" if course_name and course_name != a.course_code else (a.course_code or "")
+        desc = f"סוג: {a.type} | קורס: {course_label} - {a.course_code}".replace("\r", "").replace("\n", " ")
 
         lines.extend([
             "BEGIN:VEVENT",
@@ -1165,7 +1165,7 @@ async def upload_attachment(assignment_id: int, file: UploadFile = File(...), ca
                                   object_name=object_name, category=category)
     db.add(new_attachment)
 
-    touch_course_vitality(db, str(assignment.courseCode))
+    touch_course_vitality(db, str(assignment.course_code))
     db.commit()
     db.refresh(new_attachment)
     return {"id": new_attachment.id, "filename": new_attachment.filename, "category": new_attachment.category}
@@ -1259,8 +1259,8 @@ def download_attachment(attachment_id: int, expires: int, sig: str, db: Session 
 
 
 # --- Summaries Routes ---
-@app.get("/api/v2/summaries/{courseCode}")
-def get_summaries(courseCode: str, optional_user: dict = Depends(get_optional_user), db: Session = Depends(get_db)):
+@app.get("/api/v2/summaries/{course_code}")
+def get_summaries(course_code: str, optional_user: dict = Depends(get_optional_user), db: Session = Depends(get_db)):
     # Hide pending creations
     pending_logs = db.query(DBAuditLog.entity_id).filter(
         DBAuditLog.action == "CREATE",
@@ -1269,7 +1269,7 @@ def get_summaries(courseCode: str, optional_user: dict = Depends(get_optional_us
     ).all()
     pending_ids = [int(log[0].split(":")[0]) for log in pending_logs if ":" in log[0]]
 
-    query = db.query(DBSummary).filter(DBSummary.courseCode == courseCode)
+    query = db.query(DBSummary).filter(DBSummary.course_code == course_code)
     if pending_ids:
         query = query.filter(DBSummary.id.notin_(pending_ids))
 
@@ -1307,10 +1307,10 @@ def get_summaries(courseCode: str, optional_user: dict = Depends(get_optional_us
 
 
 @app.post("/api/v2/summaries")
-async def upload_summary(courseCode: str = Form(...), filename: str = Form(...), file: UploadFile = File(...),
+async def upload_summary(course_code: str = Form(...), filename: str = Form(...), file: UploadFile = File(...),
                          current_user: dict = Depends(get_write_user), db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
-    course = db.query(DBCourse).filter(DBCourse.code == courseCode).first()
+    course = db.query(DBCourse).filter(DBCourse.code == course_code).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
 
@@ -1323,7 +1323,7 @@ async def upload_summary(courseCode: str = Form(...), filename: str = Form(...),
         raise HTTPException(status_code=500, detail=f"MinIO Upload Error: {str(e)}")
 
     new_summary = DBSummary(
-        courseCode=courseCode,
+        course_code=course_code,
         uploader_id=user.id,
         filename=filename,
         object_name=object_name
@@ -1336,13 +1336,13 @@ async def upload_summary(courseCode: str = Form(...), filename: str = Form(...),
             user_id=user.id,
             action="CREATE",
             entity_type="SUMMARY",
-            entity_id=f"{new_summary.id}:{courseCode} - {filename}",
+            entity_id=f"{new_summary.id}:{course_code} - {filename}",
             new_data=json.dumps({"filename": filename}),
             status="PENDING"
         )
         db.add(audit_log)
 
-    touch_course_vitality(db, courseCode)
+    touch_course_vitality(db, course_code)
 
     db.commit()
     db.refresh(new_summary)
@@ -1377,14 +1377,14 @@ async def update_summary(summary_id: int, filename: str = Form(...), file: Optio
             user_id=user.id,
             action="UPDATE",
             entity_type="SUMMARY",
-            entity_id=f"{summary.id}:{summary.courseCode} - {summary.filename}",
+            entity_id=f"{summary.id}:{summary.course_code} - {summary.filename}",
             old_data=json.dumps({"filename": old_filename}),
             new_data=json.dumps({"filename": filename, "file_updated": file is not None}),
             status="PENDING"
         )
         db.add(audit_log)
 
-    touch_course_vitality(db, str(summary.courseCode))
+    touch_course_vitality(db, str(summary.course_code))
     db.commit()
     return {"success": True}
 
@@ -1449,7 +1449,7 @@ def delete_summary(summary_id: int, current_user: dict = Depends(get_current_use
 
     db.query(DBSummaryLike).filter(DBSummaryLike.summary_id == summary_id).delete()
     db.delete(summary)
-    touch_course_vitality(db, str(summary.courseCode))
+    touch_course_vitality(db, str(summary.course_code))
     db.commit()
     return {"success": True}
 
@@ -1587,7 +1587,7 @@ def approve_change(log_id: int, admin: DBUser = Depends(get_admin_user), db: Ses
             ).delete(synchronize_session=False)
 
             # Trigger course vitality
-            db_course = db.query(DBCourse).filter(DBCourse.code == db_assignment.courseCode).first()
+            db_course = db.query(DBCourse).filter(DBCourse.code == db_assignment.course_code).first()
             if db_course:
                 db_course.last_edited = datetime.utcnow()
 
@@ -1718,7 +1718,7 @@ def get_merge_candidates(db: Session = Depends(get_db), current_user: dict = Dep
 
     grouped = defaultdict(list)
     for a in assignments:
-        grouped[a.courseCode].append({
+        grouped[a.course_code].append({
             "id": a.id,
             "title": a.title,
             "deadline": a.deadline.isoformat(),
