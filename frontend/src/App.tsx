@@ -324,6 +324,31 @@ const AdminDashboard = ({
     }
   }, [activeTab, token, setLogs]);
 
+  const fetchMergeData = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/assignments/merge-candidates`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setMergeCandidates(data);
+
+      // UX Bonus: If the currently selected course no longer has duplicates after merging, clear the selection
+      if (selectedMergeCourse && !data[selectedMergeCourse]) {
+        setSelectedMergeCourse('');
+      }
+    } catch (err) {
+      console.error("Failed to fetch merge candidates:", err);
+    }
+  };
+
+  // 2. The useEffect now just calls our reusable function when the tab opens
+  useEffect(() => {
+    if (activeTab === 'merges') {
+      fetchMergeData();
+    }
+  }, [activeTab, token]);
+
   useEffect(() => { fetchAdminData(); }, [fetchAdminData]);
 
   // Dedicated fetch just for the Merges tab
@@ -721,8 +746,8 @@ const AdminDashboard = ({
                               setIsMergeDropdownOpen(false); // Close menu on select
                             }}
                             className={`w-full text-right px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0 ${selectedMergeCourse === code
-                                ? 'bg-blue-50/50 dark:bg-slate-700/50 text-blue-700 dark:text-blue-400 font-bold'
-                                : 'text-slate-700 dark:text-slate-300'
+                              ? 'bg-blue-50/50 dark:bg-slate-700/50 text-blue-700 dark:text-blue-400 font-bold'
+                              : 'text-slate-700 dark:text-slate-300'
                               }`}
                           >
                             {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
@@ -820,8 +845,10 @@ const AdminDashboard = ({
                           body: JSON.stringify({ target_id: mergeSelection.targetId, source_id: mergeSelection.sourceId })
                         });
                         if (res.ok) {
+                          // Clear the specific assignment selections
                           setMergeSelection({ targetId: null, sourceId: null });
-                          fetchAdminData(); // Refreshes data behind the scenes
+                          fetchMergeData();
+
                         } else {
                           alert('שגיאה במיזוג.');
                         }
