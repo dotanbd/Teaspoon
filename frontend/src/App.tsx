@@ -685,28 +685,38 @@ const AdminDashboard = ({
               <label className="block text-sm font-bold mb-3 text-slate-700 dark:text-slate-300">
                 בחר קורס לעריכה:
               </label>
-              <select
-                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                value={selectedMergeCourse}
-                onChange={(e) => {
-                  setSelectedMergeCourse(e.target.value);
-                  setMergeSelection({ targetId: null, sourceId: null });
-                }}
-              >
-                <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                  -- בחר קורס מהרשימה --
-                </option>
 
-                {Object.keys(mergeCandidates).map(code => (
-                  <option
-                    key={code}
-                    value={code}
-                    className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                  >
-                    {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
+              {/* Wrapper relative div for our custom arrow */}
+              <div className="relative">
+                <select
+                  /* Added appearance-none and bg-none to kill the buggy background rectangle! */
+                  className="w-full p-3 appearance-none bg-none rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all pl-10"
+                  value={selectedMergeCourse}
+                  onChange={(e) => {
+                    setSelectedMergeCourse(e.target.value);
+                    setMergeSelection({ targetId: null, sourceId: null });
+                  }}
+                >
+                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                    -- בחר קורס מהרשימה --
                   </option>
-                ))}
-              </select>
+
+                  {Object.keys(mergeCandidates).map(code => (
+                    <option
+                      key={code}
+                      value={code}
+                      className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    >
+                      {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Our custom, bug-free arrow floating on the left side */}
+                <div className="absolute top-1/2 left-3 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
+                  <ChevronDown className="w-5 h-5" />
+                </div>
+              </div>
             </div>
 
             {/* The Two Columns (Renders only when a course is selected) */}
