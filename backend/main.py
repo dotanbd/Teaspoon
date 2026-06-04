@@ -1735,10 +1735,11 @@ def get_merge_candidates(db: Session = Depends(get_db), current_user: dict = Dep
 
     grouped = defaultdict(list)
     for a in assignments:
+        safe_deadline = a.deadline if isinstance(a.deadline, str) else a.deadline.isoformat()
         grouped[a.course_code].append({
             "id": a.id,
             "title": a.title,
-            "deadline": a.deadline.isoformat(),
+            "deadline": safe_deadline,
             "has_moodle_uid": bool(a.moodle_uid),
             "moodle_uid": a.moodle_uid
         })
