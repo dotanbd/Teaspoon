@@ -328,6 +328,23 @@ const AdminDashboard = ({
 
   useEffect(() => { fetchAdminData(); }, [fetchAdminData]);
 
+  // Dedicated fetch just for the Merges tab
+  useEffect(() => {
+    if (activeTab === 'merges' && token) {
+      console.log("Merges tab opened! Fetching candidates...");
+      
+      fetch(`${API_BASE_URL}/admin/assignments/merge-candidates`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("DEBUG - Received Merge Data from backend:", data);
+        setMergeCandidates(data);
+      })
+      .catch(err => console.error("Failed to fetch merge candidates:", err));
+    }
+  }, [activeTab, token]);
+
   const handleRoleChange = async (userId: number, newRole: string) => {
     if (!window.confirm(`האם אתה בטוח שברצונך לשנות את ההרשאה ל-${newRole}?`)) return;
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
@@ -703,7 +720,7 @@ const AdminDashboard = ({
                     </div>
                     <div className="space-y-2">
                       {mergeCandidates[selectedMergeCourse].filter(a => !a.has_moodle_uid).length === 0 && (
-                        <div className="text-xs text-slate-400 p-2">אין מטלות ידניות פנויות.</div>
+                        <div className="text-xs text-slate-400 p-2">אין מטלות ידניות בקורס זה.</div>
                       )}
                       {mergeCandidates[selectedMergeCourse].filter(a => !a.has_moodle_uid).map(item => (
                         <button
@@ -731,7 +748,7 @@ const AdminDashboard = ({
                     </div>
                     <div className="space-y-2">
                       {mergeCandidates[selectedMergeCourse].filter(a => a.has_moodle_uid).length === 0 && (
-                        <div className="text-xs text-slate-400 p-2">אין מטלות Moodle פנויות.</div>
+                        <div className="text-xs text-slate-400 p-2">אין מטלות Moodle בקורס זה.</div>
                       )}
                       {mergeCandidates[selectedMergeCourse].filter(a => a.has_moodle_uid).map(item => (
                         <button
