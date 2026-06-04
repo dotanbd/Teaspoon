@@ -249,6 +249,7 @@ const AdminDashboard = ({
 
   // Merge management states
   const [selectedMergeCourse, setSelectedMergeCourse] = useState<string>('');
+  const [isMergeDropdownOpen, setIsMergeDropdownOpen] = useState(false);
   const [mergeCandidates, setMergeCandidates] = useState<Record<string, any[]>>({});
   const [mergeSelection, setMergeSelection] = useState<{ targetId: number | null, sourceId: number | null }>({ targetId: null, sourceId: null });
 
@@ -680,34 +681,64 @@ const AdminDashboard = ({
               </p>
             </div>
 
-            {/* Course Selector Dropdown */}
+            {/* Course Selector Dropdown (Custom React Component) */}
             <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <label className="block text-sm font-bold mb-3 text-slate-700 dark:text-slate-300">
                 בחר קורס לעריכה:
               </label>
 
+              {/* Custom Dropdown Container */}
               <div className="relative">
-                <select
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-right appearance-none"
-                  value={selectedMergeCourse}
-                  onChange={(e) => {
-                    setSelectedMergeCourse(e.target.value);
-                    setMergeSelection({ targetId: null, sourceId: null });
-                  }}
+
+                {/* The "Trigger" Button (Replaces the <select> box) */}
+                <button
+                  type="button"
+                  onClick={() => setIsMergeDropdownOpen(!isMergeDropdownOpen)}
+                  className="w-full px-4 py-3 flex items-center justify-between border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 dark:text-white font-medium"
                 >
-                  <option value="" disabled>-- בחר קורס מהרשימה --</option>
+                  {/* Selected Value Text */}
+                  <span className="truncate">
+                    {selectedMergeCourse
+                      ? `${selectedMergeCourse} ${coursesMap[selectedMergeCourse]?.name ? `- ${coursesMap[selectedMergeCourse].name}` : ''}`
+                      : '-- בחר קורס מהרשימה --'}
+                  </span>
 
-                  {Object.keys(mergeCandidates).map(code => (
-                    <option key={code} value={code}>
-                      {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
-                    </option>
-                  ))}
-                </select>
+                  {/* Arrow Icon */}
+                  <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-200 ${isMergeDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-                {/* Custom arrow on the left side */}
-                <div className="absolute top-1/2 left-3 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
-                  <ChevronDown className="w-5 h-5" />
-                </div>
+                {/* The Dropdown Menu (Replaces the <option> tags) */}
+                {isMergeDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                    <ul className="py-1 text-right">
+                      {Object.keys(mergeCandidates).map(code => (
+                        <li key={code}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedMergeCourse(code);
+                              setMergeSelection({ targetId: null, sourceId: null });
+                              setIsMergeDropdownOpen(false); // Close menu on select
+                            }}
+                            className={`w-full text-right px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0 ${selectedMergeCourse === code
+                                ? 'bg-blue-50/50 dark:bg-slate-700/50 text-blue-700 dark:text-blue-400 font-bold'
+                                : 'text-slate-700 dark:text-slate-300'
+                              }`}
+                          >
+                            {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
+                          </button>
+                        </li>
+                      ))}
+
+                      {/* Fallback if no courses exist */}
+                      {Object.keys(mergeCandidates).length === 0 && (
+                        <li className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm text-center">
+                          אין קורסים זמינים למיזוג
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
 
