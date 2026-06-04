@@ -689,24 +689,21 @@ const AdminDashboard = ({
               {/* Wrapper relative div for our custom arrow */}
               <div className="relative">
                 <select
-                  /* Added appearance-none and bg-none to kill the buggy background rectangle! */
-                  className="w-full p-3 appearance-none bg-none rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all pl-10"
+                  /* Added !bg-none to force override plugins, and dark:[color-scheme:dark] for native dark mode */
+                  className="w-full p-3 appearance-none !bg-none rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all pl-10 dark:[color-scheme:dark]"
                   value={selectedMergeCourse}
                   onChange={(e) => {
                     setSelectedMergeCourse(e.target.value);
                     setMergeSelection({ targetId: null, sourceId: null });
                   }}
+                  dir="rtl"
                 >
-                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                  <option value="">
                     -- בחר קורס מהרשימה --
                   </option>
 
                   {Object.keys(mergeCandidates).map(code => (
-                    <option
-                      key={code}
-                      value={code}
-                      className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                    >
+                    <option key={code} value={code}>
                       {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
                     </option>
                   ))}
