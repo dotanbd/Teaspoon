@@ -329,16 +329,16 @@ const AdminDashboard = ({
   useEffect(() => {
     if (activeTab === 'merges' && token) {
       console.log("Merges tab opened! Fetching candidates...");
-      
+
       fetch(`${API_BASE_URL}/admin/assignments/merge-candidates`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      .then(res => res.json())
-      .then(data => {
-        console.log("DEBUG - Received Merge Data from backend:", data);
-        setMergeCandidates(data);
-      })
-      .catch(err => console.error("Failed to fetch merge candidates:", err));
+        .then(res => res.json())
+        .then(data => {
+          console.log("DEBUG - Received Merge Data from backend:", data);
+          setMergeCandidates(data);
+        })
+        .catch(err => console.error("Failed to fetch merge candidates:", err));
     }
   }, [activeTab, token]);
 
@@ -690,12 +690,19 @@ const AdminDashboard = ({
                 value={selectedMergeCourse}
                 onChange={(e) => {
                   setSelectedMergeCourse(e.target.value);
-                  setMergeSelection({ targetId: null, sourceId: null }); // Reset selections when course changes
+                  setMergeSelection({ targetId: null, sourceId: null });
                 }}
               >
-                <option value="">-- בחר קורס מהרשימה --</option>
+                <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                  -- בחר קורס מהרשימה --
+                </option>
+
                 {Object.keys(mergeCandidates).map(code => (
-                  <option key={code} value={code}>
+                  <option
+                    key={code}
+                    value={code}
+                    className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
                     {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
                   </option>
                 ))}
@@ -724,8 +731,8 @@ const AdminDashboard = ({
                           key={item.id}
                           onClick={() => setMergeSelection(prev => ({ ...prev, targetId: item.id }))}
                           className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.targetId === item.id
-                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500'
-                              : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
                             }`}
                         >
                           <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
@@ -752,8 +759,8 @@ const AdminDashboard = ({
                           key={item.id}
                           onClick={() => setMergeSelection(prev => ({ ...prev, sourceId: item.id }))}
                           className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.sourceId === item.id
-                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500'
-                              : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'
+                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'
                             }`}
                         >
                           <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
