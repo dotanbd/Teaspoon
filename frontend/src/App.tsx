@@ -315,9 +315,6 @@ const AdminDashboard = ({
       } else if (activeTab === 'changelogs') {
         const res = await fetch(`${API_BASE_URL}/changelogs`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) setAppReleases(await res.json());
-      } else if (activeTab === 'merges') {
-        const res = await fetch(`${API_BASE_URL}/admin/assignments/merge-candidates`, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) setMergeCandidates(await res.json());
       }
     } catch (e) {
       console.error(e);
