@@ -686,21 +686,16 @@ const AdminDashboard = ({
                 בחר קורס לעריכה:
               </label>
 
-              {/* Wrapper relative div for our custom arrow */}
               <div className="relative">
                 <select
-                  /* Added !bg-none to force override plugins, and dark:[color-scheme:dark] for native dark mode */
-                  className="w-full p-3 appearance-none !bg-none rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all pl-10 dark:[color-scheme:dark]"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100 text-right appearance-none"
                   value={selectedMergeCourse}
                   onChange={(e) => {
                     setSelectedMergeCourse(e.target.value);
                     setMergeSelection({ targetId: null, sourceId: null });
                   }}
-                  dir="rtl"
                 >
-                  <option value="">
-                    -- בחר קורס מהרשימה --
-                  </option>
+                  <option value="" disabled>-- בחר קורס מהרשימה --</option>
 
                   {Object.keys(mergeCandidates).map(code => (
                     <option key={code} value={code}>
@@ -709,7 +704,7 @@ const AdminDashboard = ({
                   ))}
                 </select>
 
-                {/* Our custom, bug-free arrow floating on the left side */}
+                {/* Custom arrow on the left side */}
                 <div className="absolute top-1/2 left-3 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
                   <ChevronDown className="w-5 h-5" />
                 </div>
