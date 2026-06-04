@@ -247,7 +247,8 @@ const AdminDashboard = ({
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
-  // Merge management state
+  // Merge management states
+  const [selectedMergeCourse, setSelectedMergeCourse] = useState<string>('');
   const [mergeCandidates, setMergeCandidates] = useState<Record<string, any[]>>({});
   const [mergeSelection, setMergeSelection] = useState<{ targetId: number | null, sourceId: number | null }>({ targetId: null, sourceId: null });
 
@@ -660,89 +661,126 @@ const AdminDashboard = ({
                 <GitMerge className="w-5 h-5" /> מיזוג מטלות ידני
               </h3>
               <p className="text-sm text-blue-600 dark:text-blue-400">
-                כאן תוכל למזג מטלה שהגיעה ממודל לתוך מטלה קיימת שהוזנה ידנית. פעולה זו <span className="font-bold">שומרת על ה-ID המקורי</span> כך שסטטוסים וציונים של סטודנטים לא יאבדו!
+                בחר קורס כדי להציג את כל המטלות שלו. בחר מטלת יעד (ידנית) ומטלת מקור (מודל) כדי למזג ביניהן.
+                פעולה זו תעתיק את הדדליין והמזהה של מודל למטלה הידנית, ותמחק את המטלה האוטומטית הכפולה.
               </p>
             </div>
 
-            {Object.keys(mergeCandidates).length === 0 ? (
-              <div className="text-center py-10 text-slate-500">לא נמצאו כפילויות פוטנציאליות.</div>
-            ) : (
-              Object.entries(mergeCandidates).map(([course_code, assignments]) => {
-                const manualItems = assignments.filter(a => !a.has_moodle_uid);
-                const moodleItems = assignments.filter(a => a.has_moodle_uid);
+            {/* Course Selector Dropdown */}
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <label className="block text-sm font-bold mb-3 text-slate-700 dark:text-slate-300">
+                בחר קורס לעריכה:
+              </label>
+              <select
+                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                value={selectedMergeCourse}
+                onChange={(e) => {
+                  setSelectedMergeCourse(e.target.value);
+                  setMergeSelection({ targetId: null, sourceId: null }); // Reset selections when course changes
+                }}
+              >
+                <option value="">-- בחר קורס מהרשימה --</option>
+                {Object.keys(mergeCandidates).map(code => (
+                  <option key={code} value={code}>
+                    {code} {coursesMap[code]?.name ? `- ${coursesMap[code].name}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                return (
-                  <div key={course_code} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
-                    <h4 className="font-black text-slate-800 dark:text-slate-200 mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">
-                      קורס {course_code} - {coursesMap[course_code]?.name || ''}
-                    </h4>
+            {/* The Two Columns (Renders only when a course is selected) */}
+            {selectedMergeCourse && mergeCandidates[selectedMergeCourse] && (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm animate-in fade-in duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* TARGET: Manual Assignments */}
-                      <div>
-                        <div className="text-xs font-bold text-slate-500 mb-2">בחר מטלת יעד (תשמור על ה-ID שלה):</div>
-                        <div className="space-y-2">
-                          {manualItems.map(item => (
-                            <button
-                              key={item.id}
-                              onClick={() => setMergeSelection(prev => ({ ...prev, targetId: item.id }))}
-                              className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.targetId === item.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'}`}
-                            >
-                              <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
-                              <div className="text-xs text-slate-500 mt-1">{new Date(item.deadline).toLocaleString('he-IL')}</div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* SOURCE: Moodle Assignments */}
-                      <div>
-                        <div className="text-xs font-bold text-slate-500 mb-2">בחר מטלת מקור (תימחק לאחר המיזוג):</div>
-                        <div className="space-y-2">
-                          {moodleItems.map(item => (
-                            <button
-                              key={item.id}
-                              onClick={() => setMergeSelection(prev => ({ ...prev, sourceId: item.id }))}
-                              className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.sourceId === item.id ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-red-300'}`}
-                            >
-                              <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
-                              <div className="text-xs text-slate-500 mt-1">{new Date(item.deadline).toLocaleString('he-IL')}</div>
-                            </button>
-                          ))}
-                        </div>
+                  {/* TARGET: Manual Assignments */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                      <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        מטלות ידניות (יעד)
                       </div>
                     </div>
-
-                    {/* Execute Merge Button */}
-                    <div className="mt-6 flex justify-end">
-                      <button
-                        disabled={!mergeSelection.targetId || !mergeSelection.sourceId}
-                        onClick={async () => {
-                          if (!window.confirm('האם אתה בטוח? פעולה זו תחליף את הדדליין של המטלה המקורית ותמחק את הכפילות.')) return;
-                          try {
-                            const res = await fetch(`${API_BASE_URL}/admin/assignments/merge`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                              body: JSON.stringify({ target_id: mergeSelection.targetId, source_id: mergeSelection.sourceId })
-                            });
-                            if (res.ok) {
-                              setMergeSelection({ targetId: null, sourceId: null });
-                              fetchAdminData(); // Refresh the lists
-                            } else {
-                              alert('שגיאה במיזוג.');
-                            }
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }}
-                        className="bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        <GitMerge className="w-4 h-4" /> בצע מיזוג
-                      </button>
+                    <div className="space-y-2">
+                      {mergeCandidates[selectedMergeCourse].filter(a => !a.has_moodle_uid).length === 0 && (
+                        <div className="text-xs text-slate-400 p-2">אין מטלות ידניות פנויות.</div>
+                      )}
+                      {mergeCandidates[selectedMergeCourse].filter(a => !a.has_moodle_uid).map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => setMergeSelection(prev => ({ ...prev, targetId: item.id }))}
+                          className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.targetId === item.id
+                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500'
+                              : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
+                            }`}
+                        >
+                          <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
+                          <div className="text-xs text-slate-500 mt-1">{new Date(item.deadline).toLocaleString('he-IL')}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                );
-              })
+
+                  {/* SOURCE: Moodle Assignments */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                      <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        מטלות Moodle (מקור למחיקה)
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {mergeCandidates[selectedMergeCourse].filter(a => a.has_moodle_uid).length === 0 && (
+                        <div className="text-xs text-slate-400 p-2">אין מטלות Moodle פנויות.</div>
+                      )}
+                      {mergeCandidates[selectedMergeCourse].filter(a => a.has_moodle_uid).map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => setMergeSelection(prev => ({ ...prev, sourceId: item.id }))}
+                          className={`w-full text-right p-3 rounded-lg border text-sm transition-all ${mergeSelection.sourceId === item.id
+                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500'
+                              : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'
+                            }`}
+                        >
+                          <div className="font-bold text-slate-800 dark:text-slate-200">{item.title}</div>
+                          <div className="text-xs text-slate-500 mt-1">{new Date(item.deadline).toLocaleString('he-IL')}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Execute Merge Button */}
+                <div className="mt-8 pt-5 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
+                    * המערכת תעתיק את תאריך ההגשה והמזהה הייחודי ממטלת ה-Moodle אל המטלה הידנית שבחרת.
+                  </div>
+                  <button
+                    disabled={!mergeSelection.targetId || !mergeSelection.sourceId}
+                    onClick={async () => {
+                      if (!window.confirm('בטוח? פעולה זו תעדכן את המטלה המקורית ותמחק את הכפילות לתמיד.')) return;
+                      try {
+                        const res = await fetch(`${API_BASE_URL}/admin/assignments/merge`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({ target_id: mergeSelection.targetId, source_id: mergeSelection.sourceId })
+                        });
+                        if (res.ok) {
+                          setMergeSelection({ targetId: null, sourceId: null });
+                          fetchAdminData(); // Refreshes data behind the scenes
+                        } else {
+                          alert('שגיאה במיזוג.');
+                        }
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }}
+                    className="w-full sm:w-auto bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    <GitMerge className="w-4 h-4" /> בצע מיזוג עכשיו
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         ) : (
