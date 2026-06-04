@@ -1730,8 +1730,8 @@ def get_merge_candidates(db: Session = Depends(get_db), current_user: dict = Dep
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Get assignments from the last 60 days and future
-    recent_limit = datetime.utcnow() - timedelta(days=60)
-    assignments = db.query(DBAssignment).filter(DBAssignment.deadline >= recent_limit).all()
+    recent_limit_str = (datetime.utcnow() - timedelta(days=60)).strftime("%Y-%m-%d %H:%M:%S")
+    assignments = db.query(DBAssignment).filter(DBAssignment.deadline >= recent_limit_str).all()
 
     grouped = defaultdict(list)
     for a in assignments:
