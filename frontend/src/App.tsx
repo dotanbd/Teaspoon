@@ -6,7 +6,7 @@ import {
   XCircle, Calculator, Shield, Settings, ChevronDown,
   Heart, Users, ShieldAlert, ArrowLeft, ListChecks, Ban,
   Trophy, LayoutGrid, List, Download, UploadCloud, Loader2,
-  Star, Zap, Wrench, Sparkles, GitMerge
+  Star, Zap, Wrench, Sparkles, GitMerge, ChevronUp
 } from 'lucide-react';
 
 // --- Production/Development API Configuration ---
@@ -76,6 +76,19 @@ interface Summary {
   upload_date: string;
   likes: number;
   isLikedByMe: boolean;
+}
+
+interface ChangelogFeature {
+  title: string;
+  desc?: string;
+}
+
+interface Changelog {
+  id: number;
+  version: string;
+  date: string;
+  title: string;
+  features: ChangelogFeature[] | string; 
 }
 
 const typeTranslations: Record<string, string> = { 'All': 'הכל', 'Assignment': 'גיליון', 'Webwork': 'וובוורק', 'Exam': 'מבחן', 'lab_report': 'דוח מעבדה', 'other': 'אחר' };
@@ -1187,7 +1200,7 @@ export default function App() {
   const [course_codeError, setcourse_codeError] = useState<string>('');
   const [isAddingCourse, setIsAddingCourse] = useState<boolean>(false);
 
-  // --- Changelog & Intro Modal State ---
+  // --- Intro Modal State ---
   const [appReleases, setAppReleases] = useState<any[]>([]);
   const [unseenReleases, setUnseenReleases] = useState<any[]>([]);
   const [showIntroModal, setShowIntroModal] = useState(false);
@@ -1246,6 +1259,40 @@ export default function App() {
       }
     }
   };
+
+  //--- Changelog Modal State ---
+  const [showChangelogModal, setShowChangelogModal] = useState(false);
+  const [expandedLogs, setExpandedLogs] = useState<string[]>([]);
+  const [changelogs, setChangelogs] = useState<Changelog[]>([]);
+  
+  const toggleLogExpansion = (version: string) => {
+    setExpandedLogs(prev => prev.includes(version) ? prev.filter(v => v !== version) : [...prev, version]);
+  };
+
+  useEffect(() => {
+    const fetchChangelogs = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/changelogs`);
+        if (res.ok) {
+          const data = await res.json();
+          setChangelogs(data);
+        } else {
+          console.error("Failed to fetch changelogs");
+        }
+      } catch (err) {
+        console.error("Error fetching changelogs:", err);
+      }
+    };
+
+    fetchChangelogs();
+  }, []);
+
+  // Auto-expand the newest changelog when the manual modal is opened
+  useEffect(() => {
+    if (showChangelogModal && changelogs && changelogs.length > 0) {
+      setExpandedLogs([changelogs[0].version]);
+    }
+  }, [showChangelogModal, changelogs]);
 
   // Mobile Filter Modal State
   const [isMobileFilterModalOpen, setIsMobileFilterModalOpen] = useState<boolean>(false);
@@ -1973,13 +2020,19 @@ export default function App() {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20 gap-2">
             {/* Logo Area (Right) */}
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-[0.8rem] sm:rounded-[1rem] flex items-center justify-center text-white shadow-sm ${IS_DEV ? 'bg-orange-500' : 'bg-rose-500'}`}>
+            <button 
+              onClick={() => setShowChangelogModal(true)} 
+              className="flex items-center gap-2 sm:gap-4 shrink-0 group focus:outline-none rounded-xl p-1 -ml-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              title="צפה בהיסטוריית העדכונים"
+            >
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-[0.8rem] sm:rounded-[1rem] flex items-center justify-center text-white shadow-sm transition-transform group-active:scale-95 ${IS_DEV ? 'bg-orange-500' : 'bg-rose-500'}`}>
                 <Coffee className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
               </div>
-              <span className="text-2xl font-black tracking-tight text-[#1a202c] dark:text-white hidden sm:block">Teaspoon</span>
+              <span className="text-2xl font-black tracking-tight text-[#1a202c] dark:text-white hidden sm:block transition-colors group-hover:text-rose-600 dark:group-hover:text-rose-400">
+                Teaspoon
+              </span>
               {IS_DEV && <span className="hidden sm:block rounded-full bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1">Sandbox</span>}
-            </div>
+            </button>
 
             {/* Desktop Center Navigation */}
             <div className="hidden md:flex items-center h-full gap-8">
@@ -3353,7 +3406,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Dynamic Changelog Modal */}
+      {/* Dynamic Intro Changelog Modal */}
       {showIntroModal && unseenReleases.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
@@ -3412,6 +3465,104 @@ export default function App() {
               >
                 בואו נמשיך!
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Changelog Modal (Accessible from the logo, shows all changelogs in an accordion style) */}
+      {showChangelogModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 relative bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white">מה חדש במערכת?</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">היסטוריית עדכונים ושיפורים מלאה</p>
+              </div>
+              <button
+                onClick={() => setShowChangelogModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable Accordion mapping over ALL changelogs) */}
+            <div className="p-6 overflow-y-auto space-y-4 bg-slate-50/50 dark:bg-slate-900/20" dir="rtl">
+              {changelogs && changelogs.length > 0 ? (
+                changelogs.map((log) => {
+                  const isExpanded = expandedLogs.includes(log.version);
+                  
+                  // Parse features safely
+                  let features = [];
+                  try {
+                    features = typeof log.features === 'string' ? JSON.parse(log.features) : log.features;
+                  } catch (e) { features = []; }
+
+                  return (
+                    <div key={log.version} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 transition-all shadow-sm">
+                      
+                      {/* Accordion Toggle Header */}
+                      <button
+                        onClick={() => toggleLogExpansion(log.version)}
+                        className={`w-full flex items-center justify-between p-4 text-right transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 outline-none ${
+                          isExpanded ? 'bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-lg text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-lg">
+                            {log.version}
+                          </span>
+                          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{log.date}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          {log.title && (
+                            <span className="text-sm font-bold text-slate-600 dark:text-slate-300 hidden sm:block">
+                              {log.title}
+                            </span>
+                          )}
+                          <div className="p-1 rounded-full bg-slate-100 dark:bg-slate-800">
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Expanded Features Content */}
+                      {isExpanded && (
+                        <div className="p-5 animate-in slide-in-from-top-2 duration-200">
+                          <ul className="space-y-4">
+                            {features.map((feature: any, idx: number) => (
+                              <li key={idx} className="flex items-start gap-3">
+                                <div className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                  <Check className="w-3.5 h-3.5 stroke-[3px]" />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">
+                                    {feature.title}
+                                  </div>
+                                  {feature.desc && (
+                                    <div className="text-slate-600 dark:text-slate-400 text-sm mt-1 leading-relaxed">
+                                      {feature.desc}
+                                    </div>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                  <Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">אין היסטוריית עדכונים זמינה כרגע.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
