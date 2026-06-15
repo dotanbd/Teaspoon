@@ -13,3 +13,17 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+@keyframes dopamine-pop {
+  0% { transform: scale(1); }
+  50% { 
+    transform: scale(1.03); 
+    box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4); 
+    border-color: #10b981; 
+  }
+  100% { transform: scale(1); }
+}
+
+.animate-dopamine-pop {
+  animation: dopamine-pop 0.5s ease-out forwards;
+}

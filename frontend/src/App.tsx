@@ -8,6 +8,7 @@ import {
   Trophy, LayoutGrid, List, Download, UploadCloud, Loader2,
   Star, Zap, Wrench, Sparkles, GitMerge, ChevronUp
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 // --- Production/Development API Configuration ---
 const getApiBaseUrl = () => {
@@ -88,7 +89,7 @@ interface Changelog {
   version: string;
   date: string;
   title: string;
-  features: ChangelogFeature[] | string; 
+  features: ChangelogFeature[] | string;
 }
 
 const typeTranslations: Record<string, string> = { 'All': 'הכל', 'Assignment': 'גיליון', 'Webwork': 'וובוורק', 'Exam': 'מבחן', 'lab_report': 'דוח מעבדה', 'other': 'אחר' };
@@ -1022,6 +1023,9 @@ export default function App() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [coursesMap, setCoursesMap] = useState<CoursesMap>({});
 
+  // Tracks which card is currently popping
+  const [celebratingId, setCelebratingId] = useState<number | null>(null);
+
   const [myCourses, setMyCourses] = useState<string[]>([]);
   const [visibleCourses, setVisibleCourses] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1264,7 +1268,7 @@ export default function App() {
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [expandedLogs, setExpandedLogs] = useState<string[]>([]);
   const [changelogs, setChangelogs] = useState<Changelog[]>([]);
-  
+
   const toggleLogExpansion = (version: string) => {
     setExpandedLogs(prev => prev.includes(version) ? prev.filter(v => v !== version) : [...prev, version]);
   };
@@ -1650,12 +1654,41 @@ export default function App() {
     try { await fetch(`${API_BASE_URL}/courses/${finalcourse_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch { }
   };
 
+  const triggerCelebration = (id: number) => {
+    // Trigger the card pop animation
+    setCelebratingId(id);
+    setTimeout(() => setCelebratingId(null), 500); // Clean up after 0.5s
+
+    // Trigger the Confetti
+    confetti({
+      particleCount: 120,
+      spread: 70,
+      origin: { y: 0.6 }, // Start slightly lower than the top of the screen
+      zIndex: 9999,
+      colors: [
+        '#3b82f6', // Teaspoon Blue
+        '#10b981', // Emerald Green
+        '#f43f5e', // Rose
+        '#fbbf24'  // Amber
+      ]
+    });
+  };
+
   const toggleCompletion = async (id: number) => {
+    // Find the specific assignment to check its current status
+    const assignment = assignments.find(a => a.id === id);
+    if (assignment && !assignment.isCompleted) {
+      triggerCelebration(id);
+    }
     setAssignments(prev => prev.map(a => a.id === id ? { ...a, isCompleted: !a.isCompleted } : a));
-    if (token) fetch(`${API_BASE_URL}/assignments/${id}/toggle`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
-    else {
+
+    if (token) {
+      fetch(`${API_BASE_URL}/assignments/${id}/toggle`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+    } else {
       const localCompletions = JSON.parse(localStorage.getItem('guest_completions') || '[]');
-      const updated = localCompletions.includes(id) ? localCompletions.filter((i: number) => i !== id) : [...localCompletions, id];
+      const updated = localCompletions.includes(id)
+        ? localCompletions.filter((i: number) => i !== id)
+        : [...localCompletions, id];
       localStorage.setItem('guest_completions', JSON.stringify(updated));
     }
   };
@@ -2020,8 +2053,8 @@ export default function App() {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20 gap-2">
             {/* Logo Area (Right) */}
-            <button 
-              onClick={() => setShowChangelogModal(true)} 
+            <button
+              onClick={() => setShowChangelogModal(true)}
               className="flex items-center gap-2 sm:gap-4 shrink-0 group focus:outline-none rounded-xl p-1 -ml-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
               title="צפה בהיסטוריית העדכונים"
             >
@@ -2670,7 +2703,7 @@ export default function App() {
                                   <div className="flex items-center gap-3 mb-1.5">
                                     <h3 className={`text-lg font-black truncate ${assignment.isCompleted ? 'line-through text-slate-500' : 'text-[#1a202c] dark:text-white'}`}>{assignment.title}</h3>
                                     <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-md bg-[#FAF9F6] dark:bg-slate-900 text-slate-500 border border-slate-100 dark:border-slate-700 shadow-inner shrink-0">
-                                      {assignment.type === 'Assignment' ? 'גיליון' : assignment.type === 'Webwork' ? 'וובוורק' : 'מבחן'}
+                                      {assignment.type === 'Assignment' ? 'גיליון' : assignment.type === 'Webwork' ? 'וובוורק' : assignment.type === 'Exam' ? 'מבחן' : assignment.type === 'lab_report' ? 'דוח מעבדה' : 'אחר'}
                                     </span>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
@@ -3474,7 +3507,7 @@ export default function App() {
       {showChangelogModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            
+
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-200 dark:border-slate-700 relative bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
               <div>
@@ -3494,7 +3527,7 @@ export default function App() {
               {changelogs && changelogs.length > 0 ? (
                 changelogs.map((log) => {
                   const isExpanded = expandedLogs.includes(log.version);
-                  
+
                   // Parse features safely
                   let features = [];
                   try {
@@ -3503,13 +3536,12 @@ export default function App() {
 
                   return (
                     <div key={log.version} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 transition-all shadow-sm">
-                      
+
                       {/* Accordion Toggle Header */}
                       <button
                         onClick={() => toggleLogExpansion(log.version)}
-                        className={`w-full flex items-center justify-between p-4 text-right transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 outline-none ${
-                          isExpanded ? 'bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700' : ''
-                        }`}
+                        className={`w-full flex items-center justify-between p-4 text-right transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 outline-none ${isExpanded ? 'bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700' : ''
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <span className="font-black text-lg text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-lg">
@@ -3517,7 +3549,7 @@ export default function App() {
                           </span>
                           <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{log.date}</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-4">
                           {log.title && (
                             <span className="text-sm font-bold text-slate-600 dark:text-slate-300 hidden sm:block">
