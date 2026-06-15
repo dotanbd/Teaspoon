@@ -2688,7 +2688,7 @@ export default function App() {
                           const isList = viewMode === 'list';
 
                           return (
-                            <div key={assignment.id} className={`relative bg-white dark:bg-slate-800 rounded-[2rem] p-4 sm:p-5 flex flex-col ${isList ? 'sm:flex-row sm:items-center' : 'h-full justify-between'} gap-4 sm:gap-6 border border-slate-200/40 dark:border-slate-700 shadow-[0_4px_20px_rgb(0,0,0,0.03)] transition-all duration-200 group hover:z-50 focus-within:z-50 ${assignment.isCompleted ? 'opacity-50 grayscale-[0.2] hover:opacity-100 hover:grayscale-0' : ''}`}>
+                            <div key={assignment.id} className={`relative bg-white dark:bg-slate-800 rounded-[2rem] p-4 sm:p-5 flex flex-col ${isList ? 'sm:flex-row sm:items-center' : 'h-full justify-between'} gap-4 sm:gap-6 border border-slate-200/40 dark:border-slate-700 shadow-[0_4px_20px_rgb(0,0,0,0.03)] transition-all duration-200 group hover:z-50 focus-within:z-50 ${assignment.isCompleted ? 'opacity-50 grayscale-[0.2] hover:opacity-100 hover:grayscale-0' : ''} ${celebratingId === assignment.id ? 'animate-dopamine-pop z-50' : ''}`}>
                               {/* Colored Right Border indicator */}
                               <div className={`absolute right-0 top-6 bottom-6 w-1.5 rounded-s-md ${courseTheme.dot}`}></div>
 
