@@ -1,11 +1,10 @@
-import re
-import PyPDF2
-from sqlalchemy.orm import Session
-# ✨ UPDATE YOUR IMPORTS TO GRAB THE NEW TABLES!
 from main import SessionLocal, DBCourse, DBAssignment, DBAttachment, DBUserAssignment, DBUser, DBAttachmentLike, \
     DBUserStat, s3_client, BUCKET_NAME
+'''import re
+import PyPDF2
+from sqlalchemy.orm import Session'''
 
-CATALOG_PDF_PATH = "catalog.pdf"
+'''CATALOG_PDF_PATH = "catalog.pdf"
 
 
 def fix_hebrew(text):
@@ -60,14 +59,14 @@ def extract_courses_from_pdf(pdf_path):
                     actual_code = raw_code[1:4] + raw_code[5:8]
                     courses[actual_code] = clean_name
 
-    return courses
+    return courses'''
 
 
 def reset_semester():
     db = SessionLocal()
     print("\n🚨 STARTING SEMESTER RESET 🚨\n")
 
-    # --- ✨ NEW STEP: Preserve User Community Scores ---
+    # --- Intro step: Preserve User Community Scores ---
     print("💾 Step 0/3: Preserving user community scores...")
     users = db.query(DBUser).all()
     for user in users:
@@ -88,30 +87,47 @@ def reset_semester():
     db.commit()
     print("   ✅ Scores safely transferred to lifetime vault.")
 
-    # --- STEP 1: Storage Cleanup ---
-    print("🗑️  Step 1/3: Deleting assignment files from MinIO storage...")
-    attachments = db.query(DBAttachment).all()
-    deleted_files = 0
-    for att in attachments:
-        try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=att.object_name)
-            deleted_files += 1
-        except Exception as e:
-            print(f"   ⚠️ Failed to delete physical file {att.object_name}: {e}")
-    print(f"   ✅ Deleted {deleted_files} files from cloud storage.")
+    # --- STEP 1: Delete all files from S3/MinIO ---
+    print("🗑️  Step 1/3: Wiping S3 Bucket Attachments...")
+    try:
+        objects = s3_client.list_objects_v2(Bucket=BUCKET_NAME)
+        if 'Contents' in objects:
+            for obj in objects['Contents']:
+                s3_client.delete_object(Bucket=BUCKET_NAME, Key=obj['Key'])
+            print(f"   ✅ Deleted {len(objects['Contents'])} files from MinIO.")
+        else:
+            print("   ✅ Bucket is already empty.")
+    except Exception as e:
+        print(f"❌ S3 Deletion Failed: {e}")
+        return
 
-    # --- STEP 2: Database Cleanup ---
-    # We delete child tables first to respect foreign key constraints
-    print("🧹 Step 2/3: Wiping assignment databases...")
-    db.query(DBAttachmentLike).delete()  # ✨ Delete the likes
+    # --- STEP 2: Clear Database Tables ---
+    print("🧹 Step 2/3: Purging Old Semester Database Records...")
+
+    # 2.1 Delete relational / child data first (to prevent foreign key errors)
+    db.query(DBAttachmentLike).delete()
+    print("   ✅ Cleared attachment likes.")
+
     db.query(DBAttachment).delete()
-    db.query(DBUserAssignment).delete()  # Clears student completions & grades
-    db.query(DBAssignment).delete()  # Clears the assignments themselves
-    db.commit()
-    print("   ✅ Assignments, grades, and attachments cleared.")
+    print("   ✅ Cleared attachment metadata.")
 
-    # --- STEP 3: Smart Course Sync ---
-    print("📚 Step 3/3: Updating Course Catalog...")
+    db.query(DBUserAssignment).delete()
+    print("   ✅ Cleared user assignment statuses (Done/Undone).")
+
+    # 2.2 Delete the core assignments
+    db.query(DBAssignment).delete()
+    print("   ✅ Cleared all assignments.")
+
+    # 2.3 Unenroll all users from their old courses
+    db.query(DBUser).update({DBUser.followed_courses: '[]'})
+    print("   ✅ Unenrolled all users from previous courses.")
+
+    # Commit all database changes
+    db.commit()
+    print("   ✅ Database purge complete!")
+
+    # --- STEP 3: Smart Course Sync (aborted for now) ---
+    '''print("📚 Step 3/3: Updating Course Catalog...")
     try:
         courses_data = extract_courses_from_pdf(CATALOG_PDF_PATH)
 
@@ -137,10 +153,13 @@ def reset_semester():
         print(f"❌ Error: Could not find '{CATALOG_PDF_PATH}'. Catalog update skipped.")
     except Exception as e:
         print(f"❌ Error during catalog sync: {e}")
-
+        
     finally:
         db.close()
-        print("\n🎉 SEMESTER RESET COMPLETE 🎉\n")
+        print("\n🎉 SEMESTER RESET COMPLETE 🎉\n")'''
+
+    db.close()
+    print("🎉 SEMESTER RESET SUCCESSFUL! 🎉")
 
 
 if __name__ == "__main__":
