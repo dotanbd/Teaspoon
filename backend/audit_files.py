@@ -50,7 +50,7 @@ def audit_attachments():
         print("\n👻 GHOST RECORDS (These should be deleted from SQLite):")
         for key in ghost_keys:
             att = db_records[key]
-            filename = getattr(att, 'file_name', 'Unknown')
+            filename = getattr(att, 'filename', 'Unknown')
             print(f"   - DB ID: {att.id} | Name: {filename} | MinIO Key: {key}")
 
     if orphan_keys:
