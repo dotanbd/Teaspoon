@@ -5,3 +5,4 @@ backend/data-dev/
 backend/*.db
 backend/__pycache__/
 .env
+next_sprint.txt
