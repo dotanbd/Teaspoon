@@ -1540,7 +1540,7 @@ export default function App() {
     }
 
     setIsCourseModalOpen(false);
-    const payload = { ...courseFormData, hw_drop: courseFormData.hw_keep, ww_drop: courseFormData.ww_keep };
+    const payload = courseFormData;
     try { await fetch(`${API_BASE_URL}/courses/${finalcourse_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch { }
   };
 
@@ -1641,7 +1641,7 @@ export default function App() {
 
     try {
       if (!coursesMap[formData.course_code]) {
-        await fetch(`${API_BASE_URL}/courses/${formData.course_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: formData.courseName, hw_weight: 0, hw_drop: 0, ww_weight: 0, ww_drop: 0, exam_weight: 0, hw_magen: false, ww_magen: false, exam_magen: false }) });
+        await fetch(`${API_BASE_URL}/courses/${formData.course_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: formData.courseName, hw_weight: 0, hw_keep: 0, ww_weight: 0, ww_keep: 0, exam_weight: 0, hw_magen: false, ww_magen: false, exam_magen: false }) });
       }
       await fetch(`${API_BASE_URL}/assignments${isEditing ? `/${currentEditId}` : ''}`, { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
       fetchAllData();
@@ -2888,7 +2888,7 @@ export default function App() {
                     const res = await fetch(`${API_BASE_URL}/courses/${newcourse_code}`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                      body: JSON.stringify({ ...newSyl, hw_drop: 0, ww_drop: 0 })
+                      body: JSON.stringify({ ...newSyl })
                     });
 
                     if (!res.ok) throw new Error("Course creation failed");
