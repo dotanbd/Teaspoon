@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timedelta
 from typing import List, Optional
 from urllib.parse import quote
-from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFile, File, Form, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -33,7 +33,6 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
-import subprocess
 
 # Load environment variables from .env file
 load_dotenv()
@@ -271,9 +270,6 @@ class ChangelogPayload(BaseModel):
     title: str
     features: List[ChangelogFeature]
 
-class PruneSizeRequest(BaseModel):
-    size_mb: float
-
 
 # --- App Setup ---
 scheduler = AsyncIOScheduler()
@@ -341,12 +337,6 @@ def touch_course_vitality(db: Session, course_code: str):
         course.last_edited = datetime.utcnow()
         db.add(course)
 
-def run_maintenance_script(args: list):
-    try:
-        # "python" might need to be "python3" depending on your server environment
-        subprocess.run(["python", "courses_maintenance.py"] + args, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Maintenance script failed: {e}")
 
 # --- Authentication Dependencies ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
@@ -2012,29 +2002,3 @@ def delete_changelog(log_id: int, db: Session = Depends(get_db), current_user: d
     db.query(DBChangelog).filter(DBChangelog.id == log_id).delete()
     db.commit()
     return {"status": "success"}
-
-@app.post("/api/admin/maintenance/audit-attachments")
-def trigger_audit_attachments(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    # Triggers: python courses_maintenance.py --audit
-    background_tasks.add_task(run_maintenance_script, ["--audit"])
-    return {"message": "Attachment audit started in the background. Check server logs."}
-
-@app.post("/api/admin/maintenance/prune-inactive")
-def trigger_prune_inactive(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    # Triggers: python courses_maintenance.py --prune
-    background_tasks.add_task(run_maintenance_script, ["--prune"])
-    return {"message": "Inactive course pruning started in the background."}
-
-@app.post("/api/admin/maintenance/prune-size")
-def trigger_prune_size(payload: PruneSizeRequest, background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    if payload.size_mb <= 0:
-        raise HTTPException(status_code=400, detail="Size must be greater than 0.")
-    # Triggers: python courses_maintenance.py --prune-size <MB>
-    background_tasks.add_task(run_maintenance_script, ["--prune-size", str(payload.size_mb)])
-    return {"message": f"Pruning files larger than {payload.size_mb}MB in the background."}
-
-@app.post("/api/admin/maintenance/reset-semester")
-def trigger_reset_semester(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    # Triggers: python courses_maintenance.py --reset
-    background_tasks.add_task(run_maintenance_script, ["--reset"])
-    return {"message": "Semester reset started in the background. Check server logs."}
