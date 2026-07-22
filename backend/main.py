@@ -33,12 +33,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
-from courses_maintenance import (
-    audit_inactive_courses,
-    audit_attachments,
-    prune_large_files,
-    reset_semester
-)
+import subprocess
 
 # Load environment variables from .env file
 load_dotenv()
@@ -346,6 +341,12 @@ def touch_course_vitality(db: Session, course_code: str):
         course.last_edited = datetime.utcnow()
         db.add(course)
 
+def run_maintenance_script(args: list):
+    try:
+        # "python" might need to be "python3" depending on your server environment
+        subprocess.run(["python", "courses_maintenance.py"] + args, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Maintenance script failed: {e}")
 
 # --- Authentication Dependencies ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
@@ -2005,7 +2006,6 @@ def update_changelog(log_id: int, req: ChangelogPayload, db: Session = Depends(g
 
 @app.delete("/api/v2/admin/changelogs/{log_id}")
 def delete_changelog(log_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    from courses_maintenance import audit_inactive_courses
     if current_user.get('role') != 'owner':
         raise HTTPException(status_code=403, detail="Only owners can manage changelogs")
 
@@ -2015,30 +2015,26 @@ def delete_changelog(log_id: int, db: Session = Depends(get_db), current_user: d
 
 @app.post("/api/admin/maintenance/audit-attachments")
 def trigger_audit_attachments(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    """Runs a two-way audit comparing DB attachments and MinIO files."""
-    from courses_maintenance import audit_attachments
-    background_tasks.add_task(audit_attachments)
+    # Triggers: python courses_maintenance.py --audit
+    background_tasks.add_task(run_maintenance_script, ["--audit"])
     return {"message": "Attachment audit started in the background. Check server logs."}
 
 @app.post("/api/admin/maintenance/prune-inactive")
 def trigger_prune_inactive(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    """Deep cleans inactive courses and all related data."""
-    from courses_maintenance import audit_inactive_courses
-    background_tasks.add_task(audit_inactive_courses, execute=True)
+    # Triggers: python courses_maintenance.py --prune
+    background_tasks.add_task(run_maintenance_script, ["--prune"])
     return {"message": "Inactive course pruning started in the background."}
 
 @app.post("/api/admin/maintenance/prune-size")
 def trigger_prune_size(payload: PruneSizeRequest, background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    """Deletes attachments larger than the given size (in MB)."""
-    from courses_maintenance import prune_large_files
     if payload.size_mb <= 0:
         raise HTTPException(status_code=400, detail="Size must be greater than 0.")
-    background_tasks.add_task(prune_large_files, payload.size_mb)
+    # Triggers: python courses_maintenance.py --prune-size <MB>
+    background_tasks.add_task(run_maintenance_script, ["--prune-size", str(payload.size_mb)])
     return {"message": f"Pruning files larger than {payload.size_mb}MB in the background."}
 
 @app.post("/api/admin/maintenance/reset-semester")
 def trigger_reset_semester(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
-    """Full semester reset - wipes MinIO, purges assignments/attachments, unenrolls users."""
-    from courses_maintenance import reset_semester
-    background_tasks.add_task(reset_semester)
+    # Triggers: python courses_maintenance.py --reset
+    background_tasks.add_task(run_maintenance_script, ["--reset"])
     return {"message": "Semester reset started in the background. Check server logs."}
