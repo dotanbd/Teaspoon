@@ -1651,9 +1651,26 @@ export default function App() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("למחוק מטלה זו?")) return;
-    try { await fetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); setAssignments(prev => prev.filter(a => a.id !== id)); } catch { alert("שגיאה במחיקה."); }
-  };
+  const assignmentToDelete = assignments.find(a => a.id === id);
+
+  // Block deletion if the assignment has any attachments
+  if (assignmentToDelete?.attachments && assignmentToDelete.attachments.length > 0) {
+    alert("לא ניתן למחוק מטלה שיש בה קבצים מצורפים. יש למחוק את הקבצים תחילה.");
+    return;
+  }
+
+  if (!window.confirm("למחוק מטלה זו?")) return;
+  
+  try { 
+    await fetch(`${API_BASE_URL}/assignments/${id}`, { 
+      method: 'DELETE', 
+      headers: { 'Authorization': `Bearer ${token}` } 
+    }); 
+    setAssignments(prev => prev.filter(a => a.id !== id)); 
+  } catch { 
+    alert("שגיאה במחיקה."); 
+  }
+};
 
   const calculateCourseGrade = (code: string): GradeSummary | null => {
     const syllabus = coursesMap[code] || {

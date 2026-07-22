@@ -990,6 +990,12 @@ def delete_assignment(assignment_id: int, current_user: dict = Depends(get_write
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
     db_assignment = db.query(DBAssignment).filter(DBAssignment.id == assignment_id).first()
 
+    if (not user or user.role not in ["admin", "owner"]) and len(db_assignment.attachments) > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete assignment because it has attachments. Delete the attachments first."
+        )
+
     if not db_assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
