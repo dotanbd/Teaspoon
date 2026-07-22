@@ -701,6 +701,9 @@ def get_all_courses(db: Session = Depends(get_db)):
 @app.put("/api/v2/courses/{course_code}")
 def update_course(course_code: str, course_data: dict, current_user: dict = Depends(get_write_user),
                   db: Session = Depends(get_db)):
+
+    print("🔍 INCOMING COURSE DATA RAW FROM FRONTEND:", course_data)
+    
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
     course = db.query(DBCourse).filter(DBCourse.code == course_code).first()
     is_trusted = user.role in ["admin", "owner"]
