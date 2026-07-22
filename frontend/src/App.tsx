@@ -2381,10 +2381,11 @@ export default function App() {
                   if (courseData) {
                     const hasWwKeep = courseData.ww_keep !== null && courseData.ww_keep !== undefined;
                     const hasHwKeep = courseData.hw_keep !== null && courseData.hw_keep !== undefined;
+                    const hasLabKeep = courseData.lab_report_keep !== null && courseData.lab_report_keep !== undefined; //TODO: Handle lab_keep
 
                     // If the course has explicit "keep" values defined
-                    if (hasWwKeep || hasHwKeep) {
-                      const totalKeep = (courseData.ww_keep || 0) + (courseData.hw_keep || 0);
+                    if (hasWwKeep || hasHwKeep || hasLabKeep) {
+                      const totalKeep = (courseData.ww_keep || 0) + (courseData.hw_keep || 0) + (courseData.lab_report_keep || 0);
 
                       if (totalKeep > 0) {
                         courseRequired = totalKeep;
