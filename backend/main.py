@@ -403,11 +403,16 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
     response.raise_for_status()
     cal = Calendar.from_ical(response.content)
     sync_count = 0
+    hidden_records = db.query(DBHiddenMoodleUID.moodle_uid).all()
+    blacklisted_uids = {record[0] for record in hidden_records} # Fast lookup set
 
     for component in cal.walk():
         if component.name == "VEVENT":
             summary = str(component.get('summary', '')).strip()
             deadline_keywords = ['הגשה', 'הגשת', 'להגיש', 'גליון', 'גיליון', 'תרגיל', 'נסגר', 'is due', 'Quiz', 'סימולציה']
+
+            moodle_uid = str(component.get('uid', ''))
+            if moodle_uid in blacklisted_uids: continue
 
             # Filter out Zoom meetings or course openings
             if summary.startswith("נפתח ב") or "קישור" in summary or "זום" in summary or "סקר" in summary or "מילואים" in summary:
