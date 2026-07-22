@@ -1540,16 +1540,7 @@ export default function App() {
     }
 
     setIsCourseModalOpen(false);
-    const payload = {
-      ...courseFormData,
-      lab_report_weight: Number(courseFormData.lab_report_weight) || 0,
-      lab_report_keep: Number(courseFormData.lab_report_keep) || 0,
-      hw_weight: Number(courseFormData.hw_weight) || 0,
-      hw_keep: Number(courseFormData.hw_keep) || 0,
-      ww_weight: Number(courseFormData.ww_weight) || 0,
-      ww_keep: Number(courseFormData.ww_keep) || 0,
-      exam_weight: Number(courseFormData.exam_weight) || 0,
-    };
+    const payload = courseFormData;
     try { await fetch(`${API_BASE_URL}/courses/${finalcourse_code}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); } catch { }
   };
 
