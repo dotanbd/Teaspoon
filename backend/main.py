@@ -13,7 +13,7 @@ import time
 from datetime import datetime, timedelta
 from typing import List, Optional
 from urllib.parse import quote
-from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -33,6 +33,12 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
+from courses_maintenance import (
+    audit_inactive_courses,
+    audit_attachments,
+    prune_large_files,
+    reset_semester
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -269,6 +275,9 @@ class ChangelogPayload(BaseModel):
     date_str: str
     title: str
     features: List[ChangelogFeature]
+
+class PruneSizeRequest(BaseModel):
+    size_mb: float
 
 
 # --- App Setup ---
@@ -2002,3 +2011,29 @@ def delete_changelog(log_id: int, db: Session = Depends(get_db), current_user: d
     db.query(DBChangelog).filter(DBChangelog.id == log_id).delete()
     db.commit()
     return {"status": "success"}
+
+@app.post("/api/admin/maintenance/audit-attachments")
+def trigger_audit_attachments(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
+    """Runs a two-way audit comparing DB attachments and MinIO files."""
+    background_tasks.add_task(audit_attachments)
+    return {"message": "Attachment audit started in the background. Check server logs."}
+
+@app.post("/api/admin/maintenance/prune-inactive")
+def trigger_prune_inactive(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
+    """Deep cleans inactive courses and all related data."""
+    background_tasks.add_task(audit_inactive_courses, execute=True)
+    return {"message": "Inactive course pruning started in the background."}
+
+@app.post("/api/admin/maintenance/prune-size")
+def trigger_prune_size(payload: PruneSizeRequest, background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
+    """Deletes attachments larger than the given size (in MB)."""
+    if payload.size_mb <= 0:
+        raise HTTPException(status_code=400, detail="Size must be greater than 0.")
+    background_tasks.add_task(prune_large_files, payload.size_mb)
+    return {"message": f"Pruning files larger than {payload.size_mb}MB in the background."}
+
+@app.post("/api/admin/maintenance/reset-semester")
+def trigger_reset_semester(background_tasks: BackgroundTasks, admin: DBUser = Depends(get_admin_user)):
+    """Full semester reset - wipes MinIO, purges assignments/attachments, unenrolls users."""
+    background_tasks.add_task(reset_semester)
+    return {"message": "Semester reset started in the background. Check server logs."}

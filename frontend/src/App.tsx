@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getCourseTheme } from './utils/courseThemes';
+import { AdminMaintenanceTab } from './components/AdminMaintenanceTab';
 import {
   BookOpen, Calendar, Clock, Plus, CheckCircle, RefreshCw,
   AlertCircle, Edit, Trash, Filter, Sun, Moon,
@@ -139,7 +140,7 @@ const AdminDashboard = ({
   coursesMap: CoursesMap,
   userProfile: any
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'changelogs' | 'merges'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'changelogs' | 'merges' | 'maintenance'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -336,6 +337,11 @@ const AdminDashboard = ({
         {userProfile?.role === 'owner' && (
           <button onClick={() => setActiveTab('changelogs')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'changelogs' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
             <Sparkles className="w-4 h-4" /> עדכוני מערכת
+          </button>
+        )}
+        {userProfile?.role === 'owner' && (
+          <button onClick={() => setActiveTab('maintenance')} className={`flex items-center gap-2 pb-3 px-2 font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'maintenance' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            <Wrench className="w-4 h-4" /> תחזוקה
           </button>
         )}
       </div>
@@ -768,7 +774,7 @@ const AdminDashboard = ({
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'changelogs' ? (
           <div className="space-y-6">
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div>
@@ -884,6 +890,8 @@ const AdminDashboard = ({
               ))}
             </div>
           </div>
+        ) : (
+          <AdminMaintenanceTab />
         )}
       </div>
     </div>
