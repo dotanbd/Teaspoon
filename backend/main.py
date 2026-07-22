@@ -140,6 +140,12 @@ class DBAssignment(Base):
     attachments = relationship("DBAttachment", back_populates="assignment", cascade="all, delete-orphan")
     user_id = Column(Integer, ForeignKey("users.id"))
 
+class DBHiddenMoodleUID(Base):
+    __tablename__ = "hidden_moodle_uids"
+    moodle_uid = Column(String, primary_key=True, index=True)
+    deleted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    deleted_at = Column(DateTime, default=datetime.utcnow)
+
 class DBAttachment(Base):
     __tablename__ = "attachments"
     id = Column(Integer, primary_key=True, index=True)
@@ -1016,6 +1022,13 @@ def delete_assignment(assignment_id: int, current_user: dict = Depends(get_write
             pass
         db.delete(attachment)
 
+    if getattr(db_assignment, 'moodle_uid', None):
+            hidden_record = DBHiddenMoodleUID(
+                moodle_uid=db_assignment.moodle_uid,
+                deleted_by=user.id
+            )
+            db.merge(hidden_record)
+
     db.delete(db_assignment)
 
     db_course = db.query(DBCourse).filter(DBCourse.code == db_assignment.course_code).first()
@@ -1607,6 +1620,13 @@ def approve_change(log_id: int, admin: DBUser = Depends(get_admin_user), db: Ses
             db_course = db.query(DBCourse).filter(DBCourse.code == db_assignment.course_code).first()
             if db_course:
                 db_course.last_edited = datetime.utcnow()
+
+            if getattr(db_assignment, 'moodle_uid', None):
+                hidden_record = DBHiddenMoodleUID(
+                    moodle_uid=db_assignment.moodle_uid,
+                    deleted_by=admin.id  # Logging the admin who approved it!
+                )
+                db.merge(hidden_record)
 
             # elete the assignment
             db.delete(db_assignment)
