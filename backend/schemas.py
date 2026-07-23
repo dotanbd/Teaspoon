@@ -30,6 +30,22 @@ class AttachmentUpdate(BaseModel):
     filename: str
 
 
+class SemesterOut(BaseModel):
+    code: str
+    name: str
+    term: str
+    year: int
+    position: int
+    is_active: bool
+
+
+class AdvanceSemesterPayload(BaseModel):
+    new_semester_code: str  # e.g., "2026_SUMMER"
+    new_semester_name: str  # e.g., "סמסטר קיץ תשפ\"ו"
+    term: str               # "SUMMER"
+    year: int               # 2026
+
+
 class GradeUpdate(BaseModel):
     grade: Optional[int]
 

@@ -52,6 +52,14 @@ const DynamicChangelogIcon = ({ name, className }: { name: string, className?: s
 // --- TypeScript Interfaces ---
 interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; likes?: number; isLikedByMe?: boolean; }
 interface Assignment { id: number; title: string; course_code: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
+interface Semester {
+  code: string;
+  name: string;
+  term: 'WINTER' | 'SPRING' | 'SUMMER';
+  year: number;
+  position: number;
+  is_active: boolean;
+}
 interface UserProfile { id: number; email: string; name: string; picture: string; role: string; moodle_ics_url?: string; totalLikesReceived?: number; total_credits?: number; weighted_sum?: number; previous_total_credits?: number; previous_weighted_sum?: number; binary_credits?: number; previous_binary_credits?: number; last_seen_version?: number; }
 interface CourseSyllabus { name: string; hw_weight: number; hw_keep: number; hw_magen: boolean; ww_weight: number; ww_keep: number; ww_magen: boolean; lab_report_weight: number; lab_report_keep: number; lab_report_magen: boolean; exam_weight: number; exam_magen: boolean; }
 interface CoursesMap { [key: string]: CourseSyllabus; }
@@ -897,10 +905,7 @@ const AdminDashboard = ({
 export default function App() {
   const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('teaspoon_jwt') : null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-
   const [currentView, setCurrentView] = useState<'app' | 'admin' | 'summaries'>('app');
-
-  // View Mode State (Cards vs List)
   const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('teaspoon_view_mode') as 'cards' | 'list' || 'cards';
     return 'cards';
@@ -912,16 +917,34 @@ export default function App() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [coursesMap, setCoursesMap] = useState<CoursesMap>({});
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [selectedSemesterCode, setSelectedSemesterCode] = useState<string>('');
+
+  useEffect(() => {
+    const fetchSemesters = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/semesters`);
+        if (res.ok) {
+          const data: Semester[] = await res.json();
+          setSemesters(data);
+          // Default selection to position 0 (Current)
+          const current = data.find(s => s.position === 0);
+          if (current) setSelectedSemesterCode(current.code);
+        }
+      } catch (err) {
+        console.error("Failed to fetch semesters", err);
+      }
+    };
+    fetchSemesters();
+  }, []);
 
   // Tracks which card is currently popping
   const [celebratingId, setCelebratingId] = useState<number | null>(null);
-
   const [myCourses, setMyCourses] = useState<string[]>([]);
   const [visibleCourses, setVisibleCourses] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isCalendarCopied, setIsCalendarCopied] = useState(false);
-
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('theme') as 'light' | 'dark' || 'light';
     return 'light';
@@ -1400,6 +1423,7 @@ export default function App() {
   }, []);
 
   const fetchAllData = useCallback(async () => {
+    if (!selectedSemesterCode) return;
     setLoading(true); setFetchError(null);
     try {
       const headers: HeadersInit = {}; if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -2271,6 +2295,30 @@ export default function App() {
             <aside className="w-full md:w-72 lg:w-80 xl:w-[22rem] flex flex-col gap-6 shrink-0 md:sticky md:top-28 md:h-[calc(100vh-8rem)] z-30">
               <div className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-slate-200/60 dark:border-slate-700 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-1 flex flex-col overflow-hidden relative">
 
+                {/* --- NEW: SEMESTER SELECTOR DROPDOWN --- */}
+                <div className="mb-6 shrink-0">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 pr-1">
+                    סמסטר פעיל
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedSemesterCode}
+                      onChange={(e) => setSelectedSemesterCode(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#FAF9F6] dark:bg-slate-900 border-none text-sm font-bold focus:ring-0 focus:outline-none transition-colors dark:text-slate-100 appearance-none cursor-pointer"
+                    >
+                      {semesters.map((sem) => (
+                        <option key={sem.code} value={sem.code}>
+                          {sem.name} {sem.position === 0 ? '(נוכחי)' : sem.position === 1 ? '(קודם)' : '(לפני קודם)'}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+                {/* --------------------------------------- */}
+
                 {/* Header */}
                 <div className="flex justify-between items-center shrink-0">
                   <div className="flex items-center gap-2">
@@ -2303,7 +2351,7 @@ export default function App() {
                       {isSearchFocused && searchQuery && (
                         <div className="absolute z-30 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl max-h-60 overflow-y-auto flex flex-col">
                           {searchResults.length > 0 && searchResults.map(([code, syl]) => (
-                            <button key={code} onClick={() => handleAddCourse(code)} className="w-full text-right px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 flex flex-col items-start border-b border-slate-50 dark:border-slate-700 last:border-0 transition-colors">
+                            <button key={code} onMouseDown={(e) => { e.preventDefault(); handleAddCourse(code); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 flex flex-col items-start border-b border-slate-50 dark:border-slate-700 last:border-0 transition-colors">
                               <div className="flex justify-between items-center w-full"><span className="text-sm font-bold text-slate-800 dark:text-slate-100">{syl.name}</span>{myCourses.includes(code) && <CheckCircle className="w-4 h-4 text-emerald-500" />}</div>
                               <span className="text-xs text-slate-500">{code}</span>
                             </button>

@@ -40,6 +40,7 @@ from models import (
     DBAuditLog,
     DBChangelog,
     DBCourse,
+    DBSemester,
     DBHiddenMoodleUID,
     DBSummary,
     DBSummaryLike,
@@ -51,6 +52,7 @@ from models import (
     user_courses,
 )
 from schemas import (
+    AdvanceSemesterPayload,
     AssignmentCreate,
     AttachmentUpdate,
     ChangelogFeature,
@@ -61,6 +63,7 @@ from schemas import (
     MergeAssignmentsRequest,
     MoodleSyncRequest,
     ProgressUpdateReq,
+    SemesterOut,
     UpdateVersionRequest,
     RoleUpdate
 )
@@ -638,7 +641,7 @@ def update_my_courses(course_codes: List[str], current_user: dict = Depends(get_
 
 # --- Assignment Routes ---
 @app.get("/api/v2/assignments")
-def get_assignments(optional_user: dict = Depends(get_optional_user), db: Session = Depends(get_db)):
+def get_assignments(semester_code: Optional[str] = None, optional_user: dict = Depends(get_optional_user), db: Session = Depends(get_db)):
     pending_logs = db.query(DBAuditLog.entity_id).filter(
         DBAuditLog.action == "DELETE",
         DBAuditLog.entity_type == "ASSIGNMENT",
@@ -647,8 +650,14 @@ def get_assignments(optional_user: dict = Depends(get_optional_user), db: Sessio
 
     pending_ids = [int(log[0].split(":")[0]) for log in pending_logs if ":" in log[0]]
 
+    if not semester_code:
+        active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
+        semester_code = active_sem.code if active_sem else None
+
     #  Build the base query, dynamically hiding the pending deletes
     query = db.query(DBAssignment)
+    if semester_code:
+        query = query.filter(DBAssignment.semester_code == semester_code)
     if pending_ids:
         query = query.filter(DBAssignment.id.notin_(pending_ids))
     if optional_user:
@@ -1857,3 +1866,59 @@ def delete_changelog(log_id: int, db: Session = Depends(get_db), current_user: d
     db.query(DBChangelog).filter(DBChangelog.id == log_id).delete()
     db.commit()
     return {"status": "success"}
+
+
+# --- SEMESTERS ENDPOINTS ---
+@app.get("/api/v2/semesters", response_model=List[SemesterOut])
+def get_semesters(db: Session = Depends(get_db)):
+    """Fetch the active 3 rolling semesters sorted by position (0=Current, 1=Previous, 2=Oldest)."""
+    return db.query(DBSemester).order_by(DBSemester.position.asc()).all()
+
+
+@app.post("/api/v2/admin/semesters/advance")
+def advance_semester(payload: AdvanceSemesterPayload, 
+                     admin: DBUser = Depends(get_admin_user), 
+                     db: Session = Depends(get_db)):
+    
+    # 1. Identify the oldest semester (position 2)
+    oldest_sem = db.query(DBSemester).filter(DBSemester.position == 2).first()
+    
+    if oldest_sem:
+        # A. Purge attachments from S3/MinIO & DB for assignments in oldest semester
+        old_assignments = db.query(DBAssignment).filter(DBAssignment.semester_code == oldest_sem.code).all()
+        for ass in old_assignments:
+            for att in ass.attachments:
+                try:
+                    s3_client.delete_object(Bucket=BUCKET_NAME, Key=att.object_name)
+                except Exception:
+                    pass
+                db.delete(att)
+            db.delete(ass)
+
+        # C. Delete oldest semester entry
+        db.delete(oldest_sem)
+        db.flush()
+
+    # 2. Shift position 1 -> position 2, and position 0 -> position 1
+    prev_sem = db.query(DBSemester).filter(DBSemester.position == 1).first()
+    if prev_sem:
+        prev_sem.position = 2
+
+    curr_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
+    if curr_sem:
+        curr_sem.position = 1
+        curr_sem.is_active = False
+
+    # 3. Create new current semester (position 0)
+    new_sem = DBSemester(
+        code=payload.new_semester_code,
+        name=payload.new_semester_name,
+        term=payload.term,
+        year=payload.year,
+        position=0,
+        is_active=True
+    )
+    db.add(new_sem)
+    db.commit()
+
+    return {"status": "success", "message": f"Advanced to {payload.new_semester_name}"}
