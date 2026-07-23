@@ -727,6 +727,8 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
         user_data = {}
 
     assignments = db.query(DBAssignment).filter(and_(*conditions)).all()
+    
+    print(f"DEBUG: Fetched {len(assignments)} assignments for semester '{semester_code}' with user context: {optional_user}")
 
     results = []
     for a in assignments:
