@@ -1545,6 +1545,11 @@ export default function App() {
   };
 
   const triggerCelebration = (id: number) => {
+    // Play the "success" Sound
+    const popSound = new Audio('/success.mp3'); 
+    popSound.volume = 0.5;
+    popSound.play().catch(err => console.log("Audio blocked by browser:", err));
+
     // Trigger the card pop animation
     setCelebratingId(id);
     setTimeout(() => setCelebratingId(null), 500); // Clean up after 0.5s
@@ -3510,3 +3515,7 @@ export default function App() {
     </div>
   );
 }
+
+// TODO: add credits:
+// Sound Effect by <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313">freesound_community</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313">Pixabay</a>
+// icons from <a href="https://lucide.dev/">lucide</a>
