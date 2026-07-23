@@ -14,13 +14,12 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-user_courses = Table(
-    "user_courses",
-    Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id")),
-    Column("course_code", String, ForeignKey("courses.code")),
-    Column("semester_code", String, ForeignKey("semesters.code"), nullable=True, index=True)
-)
+
+class DBUserCourse(Base):
+    __tablename__ = "user_courses"
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True, index=True)
+    course_code = Column(String, ForeignKey("courses.code"), primary_key=True, index=True)
+    semester_code = Column(String, ForeignKey("semesters.code"), primary_key=True, index=True)
 
 
 class DBUserAssignment(Base):
@@ -39,7 +38,6 @@ class DBUser(Base):
     name = Column(String)
     picture = Column(String)
     role = Column(String, default="student")
-    followed_courses = relationship("DBCourse", secondary=user_courses)
     moodle_ics_url = Column(String(500), nullable=True)
     total_credits = Column(Float, default=0.0)
     weighted_sum = Column(Float, default=0.0)

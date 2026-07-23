@@ -46,6 +46,7 @@ from models import (
     DBSummaryLike,
     DBUser,
     DBUserAssignment,
+    DBUserCourse,
     DBUserStat,
     SessionLocal,
     engine,
@@ -637,52 +638,48 @@ def get_my_courses(
     current_user: dict = Depends(get_current_user), 
     db: Session = Depends(get_db)
 ):
-    # 1. Protect against JavaScript's "undefined", "null", or empty string traps
+    # Fallback for empty/bad JS strings
     if not semester_code or semester_code in ["undefined", "null", ""]:
         active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
         semester_code = active_sem.code if active_sem else None
 
-    # 2. Query the association table directly (Bypasses ORM Join complexities)
-    # This directly SELECTs the course_code column where the user and semester match.
-    rows = db.query(user_courses.c.course_code).filter(
-        user_courses.c.user_id == current_user["id"],
-        user_courses.c.semester_code == semester_code
+    # Query the real model directly!
+    user_courses_records = db.query(DBUserCourse).filter(
+        DBUserCourse.user_id == current_user["id"],
+        DBUserCourse.semester_code == semester_code
     ).all()
     
-    return [row[0] for row in rows]
+    # Extract just the strings for the frontend
+    return [record.course_code for record in user_courses_records]
 
 
 @app.post("/api/v2/users/me/courses")
-def update_my_courses(course_codes: List[str], current_user: dict = Depends(get_current_user),
-                      db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+def update_my_courses(
+    course_codes: List[str], 
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Get the current active semester
+    active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
+    active_sem_code = active_sem.code if active_sem else None
 
-    active_sem_code = get_active_semester_code(db)
+    if not active_sem_code:
+        raise HTTPException(status_code=400, detail="No active semester found")
 
-    # 1. Clear ONLY the user's courses for the currently active semester.
-    # We do NOT want to delete their history from previous semesters!
-    db.execute(
-        user_courses.delete().where(
-            and_(
-                user_courses.c.user_id == user.id,
-                user_courses.c.semester_code == active_sem_code
-            )
+    # Delete existing selections for THIS SEMESTER ONLY
+    db.query(DBUserCourse).filter(
+        DBUserCourse.user_id == current_user["id"],
+        DBUserCourse.semester_code == active_sem_code
+    ).delete(synchronize_session=False)
+
+    # Insert the new selections as real objects
+    for code in course_codes:
+        new_enrollment = DBUserCourse(
+            user_id=current_user["id"],
+            course_code=code,
+            semester_code=active_sem_code
         )
-    )
-
-    # 2. Insert the new selections with the active semester code
-    if course_codes:
-        new_insertions = [
-            {
-                "user_id": user.id,
-                "course_code": code,
-                "semester_code": active_sem_code
-            }
-            for code in course_codes
-        ]
-        db.execute(user_courses.insert(), new_insertions)
+        db.add(new_enrollment)
 
     db.commit()
     return {"success": True}
