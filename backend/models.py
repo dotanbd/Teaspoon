@@ -19,6 +19,7 @@ user_courses = Table(
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id")),
     Column("course_code", String, ForeignKey("courses.code")),
+    Column("semester_code", String, ForeignKey("semesters.code"), nullable=True, index=True)
 )
 
 
@@ -78,6 +79,19 @@ class DBAssignment(Base):
     recommended_deadline = Column(String, nullable=True)
     attachments = relationship("DBAttachment", back_populates="assignment", cascade="all, delete-orphan")
     user_id = Column(Integer, ForeignKey("users.id"))
+    semester_code = Column(String, ForeignKey("semesters.code"), nullable=True, index=True)
+
+
+class DBSemester(Base):
+    __tablename__ = "semesters"
+    
+    code = Column(String, primary_key=True)  # e.g., "2026_SPRING"
+    name = Column(String)                    # e.g., "סמסטר אביב תשפ\"ו"
+    term = Column(String)                    # "WINTER", "SPRING", or "SUMMER"
+    year = Column(Integer)
+    position = Column(Integer, index=True)   # 0 = Current, 1 = Previous, 2 = Oldest
+    is_active = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class DBHiddenMoodleUID(Base):
@@ -134,6 +148,7 @@ class DBSummary(Base):
     object_name = Column(String)
     upload_date = Column(DateTime, default=datetime.utcnow)
     course = relationship("DBCourse")
+    semester_code = Column(String, ForeignKey("semesters.code"), nullable=True, index=True)
 
 
 class DBSummaryLike(Base):
