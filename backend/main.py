@@ -20,11 +20,9 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse
 from collections import defaultdict
 import mimetypes
-from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, Table, update, Float
-from sqlalchemy import or_, and_, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
+from sqlalchemy import update
+from sqlalchemy import or_, and_, func
+from sqlalchemy.orm import Session, sessionmaker
 import requests
 from icalendar import Calendar
 import pytz
@@ -33,6 +31,38 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
+
+from models import (
+    Base,
+    DBAssignment,
+    DBAttachment,
+    DBAttachmentLike,
+    DBAuditLog,
+    DBChangelog,
+    DBCourse,
+    DBHiddenMoodleUID,
+    DBSummary,
+    DBSummaryLike,
+    DBUser,
+    DBUserAssignment,
+    DBUserStat,
+    SessionLocal,
+    engine,
+    user_courses,
+)
+from schemas import (
+    AssignmentCreate,
+    AttachmentUpdate,
+    ChangelogFeature,
+    ChangelogPayload,
+    CourseCodeUpdate,
+    CourseUpdate,
+    GradeUpdate,
+    MergeAssignmentsRequest,
+    MoodleSyncRequest,
+    ProgressUpdateReq,
+    UpdateVersionRequest,
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -70,212 +100,6 @@ for bucket in [BUCKET_NAME, SUMMARIES_BUCKET]:
             s3_client.create_bucket(Bucket=bucket)
         except Exception as e:
             print(f"Warning: Could not create MinIO bucket {bucket} on startup. ({e})")
-
-# --- Database Setup ---
-DB_FILE_NAME = os.getenv("DB_FILE", "teaspoon_v1.db")
-# Tell SQLAlchemy to use the dynamic filename
-SQLALCHEMY_DATABASE_URL = f"sqlite:///./data/{DB_FILE_NAME}"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-user_courses = Table('user_courses', Base.metadata,
-                     Column('user_id', Integer, ForeignKey('users.id')),
-                     Column('course_code', String, ForeignKey('courses.code'))
-                     )
-
-
-class DBUserAssignment(Base):
-    __tablename__ = "user_assignments"
-    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), primary_key=True)
-    assignment_id = Column(Integer, ForeignKey('assignments.id', ondelete="CASCADE"), primary_key=True)
-    is_completed = Column(Boolean, default=False)
-    grade = Column(Integer, nullable=True)
-
-
-class DBUser(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    google_id = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True)
-    name = Column(String)
-    picture = Column(String)
-    role = Column(String, default="student")
-    followed_courses = relationship("DBCourse", secondary=user_courses)
-    moodle_ics_url = Column(String(500), nullable=True)
-    total_credits = Column(Float, default=0.0)
-    weighted_sum = Column(Float, default=0.0)
-    previous_total_credits = Column(Float, default=0.0)
-    previous_weighted_sum = Column(Float, default=0.0)
-    binary_credits = Column(Float, default=0.0)
-    previous_binary_credits = Column(Float, default=0.0)
-    last_seen_version = Column(Integer, default=0)
-
-class DBCourse(Base):
-    __tablename__ = "courses"
-    code = Column(String, primary_key=True, index=True)
-    name = Column(String)
-    hw_weight = Column(Integer, default=0)
-    hw_keep = Column(Integer, default=0)
-    ww_weight = Column(Integer, default=0)
-    ww_keep = Column(Integer, default=0)
-    exam_weight = Column(Integer, default=0)
-    hw_magen = Column(Boolean, default=False)
-    ww_magen = Column(Boolean, default=False)
-    exam_magen = Column(Boolean, default=False)
-    lab_report_weight = Column(Integer, default=0)
-    lab_report_keep = Column(Integer, default=0)
-    lab_report_magen = Column(Boolean, default=False)
-    last_edited = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class DBAssignment(Base):
-    __tablename__ = "assignments"
-    id = Column(Integer, primary_key=True, index=True)
-    moodle_uid = Column(String(255), nullable=True)
-    title = Column(String)
-    course_code = Column(String, ForeignKey("courses.code"))
-    type = Column(String)
-    deadline = Column(String)
-    recommended_deadline = Column(String, nullable=True)
-    attachments = relationship("DBAttachment", back_populates="assignment", cascade="all, delete-orphan")
-    user_id = Column(Integer, ForeignKey("users.id"))
-
-class DBHiddenMoodleUID(Base):
-    __tablename__ = "hidden_moodle_uids"
-    moodle_uid = Column(String, primary_key=True, index=True)
-    deleted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    deleted_at = Column(DateTime, default=datetime.utcnow)
-
-class DBAttachment(Base):
-    __tablename__ = "attachments"
-    id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
-    filename = Column(String)
-    object_name = Column(String)
-    category = Column(String, default="assignment")
-    assignment = relationship("DBAssignment", back_populates="attachments")
-
-class DBAttachmentLike(Base):
-    __tablename__ = "attachment_likes"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    attachment_id = Column(Integer, ForeignKey("attachments.id"))
-
-class DBUserStat(Base):
-    __tablename__ = "user_stats"
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    lifetime_likes = Column(Integer, default=0)
-
-class DBAuditLog(Base):
-    __tablename__ = "audit_logs"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    action = Column(String)  # "CREATE", "UPDATE", "DELETE"
-    entity_type = Column(String)  # "ASSIGNMENT", "COURSE"
-    entity_id = Column(String)
-    old_data = Column(String, nullable=True)  # JSON snapshot
-    new_data = Column(String, nullable=True)  # JSON snapshot
-    status = Column(String, default="PENDING")  # PENDING until approved/denied
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
-    user = relationship("DBUser")
-
-class DBSummary(Base):
-    __tablename__ = "summaries"
-    id = Column(Integer, primary_key=True, index=True)
-    course_code = Column(String, ForeignKey("courses.code", ondelete="CASCADE"))
-    uploader_id = Column(Integer, ForeignKey("users.id"))
-    filename = Column(String)
-    object_name = Column(String)  # The MinIO S3 key
-    upload_date = Column(DateTime, default=datetime.utcnow)
-    course = relationship("DBCourse")
-
-class DBSummaryLike(Base):
-    __tablename__ = "summary_likes"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    summary_id = Column(Integer, ForeignKey("summaries.id", ondelete="CASCADE"))
-
-class DBChangelog(Base):
-    __tablename__ = "changelogs"
-    id = Column(Integer, primary_key=True, index=True)
-    version = Column(Integer, unique=True, index=True)
-    date_str = Column(String(100))
-    title = Column(String(255))
-    features = Column(String)  # Will store a JSON string of the features/paragraphs
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-# Create all tables
-Base.metadata.create_all(bind=engine)
-
-
-# --- Pydantic Schemas ---
-class AssignmentCreate(BaseModel):
-    title: str
-    course_code: str
-    type: str
-    deadline: str
-    recommended_deadline: Optional[str] = None
-
-
-class CourseUpdate(BaseModel):
-    name: str
-    hw_weight: int = 0
-    hw_keep: int = 0
-    ww_weight: int = 0
-    ww_keep: int = 0
-    exam_weight: int = 0
-    lab_report_weight: Optional[int] = 0
-    lab_report_keep: Optional[int] = 0
-    hw_magen: bool = False
-    ww_magen: bool = False
-    exam_magen: bool = False
-    lab_report_magen: Optional[bool] = False
-
-
-class AttachmentUpdate(BaseModel):
-    filename: str
-
-
-class GradeUpdate(BaseModel):
-    grade: Optional[int]
-
-
-class CourseCodeUpdate(BaseModel):
-    new_code: str
-
-
-class ProgressUpdateReq(BaseModel):
-    is_redo: bool
-    is_pass_fail: bool = False
-    credits: float
-    new_score: Optional[float] = None
-    old_score: Optional[float] = None
-    old_was_pass_fail: bool = False
-
-class UpdateVersionRequest(BaseModel):
-    version: int
-
-class MoodleSyncRequest(BaseModel):
-    ics_url: str
-
-class MergeAssignmentsRequest(BaseModel):
-    target_id: int # The original manual assignment (KEEP)
-    source_id: int
-
-# --- CHANGELOG SCHEMAS ---
-class ChangelogFeature(BaseModel):
-    icon: str # We store the name of the Lucide icon (e.g., "Download", "Star")
-    title: str
-    desc: str
-
-class ChangelogPayload(BaseModel):
-    version: int
-    date_str: str
-    title: str
-    features: List[ChangelogFeature]
-
 
 # --- App Setup ---
 scheduler = AsyncIOScheduler()
