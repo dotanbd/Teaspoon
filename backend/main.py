@@ -50,7 +50,6 @@ from models import (
     DBUserStat,
     SessionLocal,
     engine,
-    user_courses,
 )
 from schemas import (
     AdvanceSemesterPayload,
@@ -616,8 +615,8 @@ def update_course_code(old_code: str, payload: CourseCodeUpdate, admin: DBUser =
 
     # Safely repoint the many-to-many association table
     db.execute(
-        update(user_courses)
-        .where(user_courses.c.course_code == old_code)
+        update(DBUserCourse)
+        .where(DBUserCourse.course_code == old_code)
         .values(course_code=new_code)
     )
 
