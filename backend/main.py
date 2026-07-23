@@ -194,6 +194,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+def get_active_semester_code(db: Session) -> str:
+    """Fetches the code of the currently active semester (position 0)."""
+    active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
+    return active_sem.code if active_sem else None
+
+
 def get_admin_user(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
     if not user or user.role not in ["admin", "owner"]:
@@ -364,7 +370,8 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     deadline=deadline,
                     type="Assignment",
                     user_id=user_id,
-                    moodle_uid=moodle_uid
+                    moodle_uid=moodle_uid,
+                    semester_code=get_active_semester_code(db)
                 )
                 db.add(new_assignment)
                 sync_count += 1
@@ -634,7 +641,34 @@ def get_my_courses(current_user: dict = Depends(get_current_user), db: Session =
 def update_my_courses(course_codes: List[str], current_user: dict = Depends(get_current_user),
                       db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
-    user.followed_courses = db.query(DBCourse).filter(DBCourse.code.in_(course_codes)).all()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    active_sem_code = get_active_semester_code(db)
+
+    # 1. Clear ONLY the user's courses for the currently active semester.
+    # We do NOT want to delete their history from previous semesters!
+    db.execute(
+        user_courses.delete().where(
+            and_(
+                user_courses.c.user_id == user.id,
+                user_courses.c.semester_code == active_sem_code
+            )
+        )
+    )
+
+    # 2. Insert the new selections with the active semester code
+    if course_codes:
+        new_insertions = [
+            {
+                "user_id": user.id,
+                "course_code": code,
+                "semester_code": active_sem_code
+            }
+            for code in course_codes
+        ]
+        db.execute(user_courses.insert(), new_insertions)
+
     db.commit()
     return {"success": True}
 
@@ -734,7 +768,8 @@ def create_assignment(assignment: AssignmentCreate, current_user: dict = Depends
 
     new_assignment = DBAssignment(
         **assignment.dict(exclude={"user_id"}),
-        user_id=current_user.get("id")
+        user_id=current_user.get("id"),
+        semester_code=get_active_semester_code(db)
     )
     db.add(new_assignment)
     db.flush()
@@ -1204,7 +1239,8 @@ async def upload_summary(course_code: str = Form(...), filename: str = Form(...)
         course_code=course_code,
         uploader_id=user.id,
         filename=filename,
-        object_name=object_name
+        object_name=object_name,
+        semester_code=get_active_semester_code(db)
     )
     db.add(new_summary)
 
