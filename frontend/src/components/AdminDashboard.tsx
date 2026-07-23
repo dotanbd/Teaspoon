@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   BookOpen, CheckCircle, RefreshCw, Edit, Trash, Search, X, Check,
   AlertCircle, Ban, ArrowLeft, Users, ListChecks, Sparkles, GitMerge,
-  ChevronDown, Plus, Star, Zap, Wrench, Shield
+  ChevronDown, Plus, Star, Zap, Wrench, Shield, AlertTriangle
 } from 'lucide-react';
 
 export const getApiBaseUrl = () => {
@@ -68,6 +68,15 @@ const AdminDashboard = ({
   const [appReleases, setAppReleases] = useState<any[]>([]);
   const [editingChangelog, setEditingChangelog] = useState<any | null>(null);
   const currentAppVersion = appReleases.length > 0 ? Math.max(...appReleases.map(r => r.version)) : 0;
+
+  // Advance Semester Modal State
+  const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
+  const [advancePayload, setAdvancePayload] = useState({
+    new_semester_code: '',
+    new_semester_name: '',
+    term: 'WINTER',
+    year: new Date().getFullYear()
+  });
 
   // User search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -158,7 +167,7 @@ const AdminDashboard = ({
       const data = await res.json();
       setMergeCandidates(data);
 
-      // UX Bonus: If the currently selected course no longer has duplicates after merging, clear the selection
+      // If the currently selected course no longer has duplicates after merging, clear the selection
       if (selectedMergeCourse && !data[selectedMergeCourse]) {
         setSelectedMergeCourse('');
       }
@@ -237,6 +246,37 @@ const AdminDashboard = ({
       }
     } catch {
       alert("שגיאת תקשורת.");
+    }
+  };
+
+  const handleAdvanceSemester = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const isConfirmed = window.confirm(
+      `האם אתה בטוח שברצונך להתקדם לסמסטר ${advancePayload.new_semester_name}?\n\nפעולה זו תמחק לצמיתות את הסמסטר הישן ביותר ואת כל הקבצים המצורפים שלו. פעולה זו בלתי הפיכה!`
+    );
+
+    if (!isConfirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/semesters/advance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(advancePayload)
+      });
+
+      if (res.ok) {
+        alert("הסמסטר קודם בהצלחה! העמוד יתרענן כעת.");
+        setIsAdvanceModalOpen(false);
+        window.location.reload(); // Refresh to pull the new semester data from scratch
+      } else {
+        alert("שגיאה בקידום הסמסטר.");
+      }
+    } catch (err) {
+      alert("שגיאת תקשורת מול השרת.");
     }
   };
 
@@ -697,6 +737,13 @@ const AdminDashboard = ({
                 <p className="text-sm text-slate-500 dark:text-slate-400">הוסף עדכונים על גרסאות שיוצגו לכל המשתמשים.</p>
               </div>
               <button
+                onClick={() => setIsAdvanceModalOpen(true)}
+                className="px-4 py-2 bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 font-bold rounded-xl text-sm hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors border border-rose-200 dark:border-rose-800/50 flex items-center gap-2"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span>קידום סמסטר</span>
+              </button>
+              <button
                 onClick={() => {
                   setEditingChangelog({ version: currentAppVersion + 1, date_str: '', title: '', features: [] });
                 }}
@@ -807,6 +854,72 @@ const AdminDashboard = ({
           </div>
         )}
       </div>
+      {isAdvanceModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 p-8">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">קידום סמסטר</h2>
+
+            <form onSubmit={handleAdvanceSemester} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">קוד סמסטר (באנגלית, לדוגמה: 2026_SUMMER)</label>
+                <input
+                  required
+                  type="text"
+                  value={advancePayload.new_semester_code}
+                  onChange={e => setAdvancePayload(prev => ({ ...prev, new_semester_code: e.target.value.toUpperCase() }))}
+                  className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">שם סמסטר לתצוגה (לדוגמה: סמסטר קיץ תשפ"ו)</label>
+                <input
+                  required
+                  type="text"
+                  value={advancePayload.new_semester_name}
+                  onChange={e => setAdvancePayload(prev => ({ ...prev, new_semester_name: e.target.value }))}
+                  className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">עונה</label>
+                  <select
+                    value={advancePayload.term}
+                    onChange={e => setAdvancePayload(prev => ({ ...prev, term: e.target.value }))}
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="WINTER">חורף (WINTER)</option>
+                    <option value="SPRING">אביב (SPRING)</option>
+                    <option value="SUMMER">קיץ (SUMMER)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">שנה קלנדרית</label>
+                  <input
+                    required
+                    type="number"
+                    value={advancePayload.year}
+                    onChange={e => setAdvancePayload(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100 dark:border-slate-700">
+                <button type="submit" className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl transition-colors">
+                  בצע קידום
+                </button>
+                <button type="button" onClick={() => setIsAdvanceModalOpen(false)} className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold py-3 rounded-xl transition-colors">
+                  ביטול
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
