@@ -71,3 +71,6 @@ class ChangelogPayload(BaseModel):
     date_str: str
     title: str
     features: List[ChangelogFeature]
+
+class RoleUpdate(BaseModel):
+    role: str

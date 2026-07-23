@@ -62,6 +62,7 @@ from schemas import (
     MoodleSyncRequest,
     ProgressUpdateReq,
     UpdateVersionRequest,
+    RoleUpdate
 )
 
 # Load environment variables from .env file
@@ -1370,10 +1371,6 @@ def download_summary(summary_id: int, expires: int, sig: str, db: Session = Depe
 
 
 # --- Admin Dashboard Routes ---
-class RoleUpdate(BaseModel):
-    role: str
-
-
 @app.get("/api/v2/admin/users")
 def get_all_users(admin: DBUser = Depends(get_admin_user), db: Session = Depends(get_db)):
     users = db.query(DBUser).all()
