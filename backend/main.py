@@ -632,9 +632,23 @@ def update_course_code(old_code: str, payload: CourseCodeUpdate, admin: DBUser =
 
 
 @app.get("/api/v2/users/me/courses")
-def get_my_courses(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
-    return [c.code for c in user.followed_courses]
+def get_my_courses(
+    semester_code: Optional[str] = None, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    # Fallback to active semester if the URL is blank
+    if not semester_code:
+        active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
+        semester_code = active_sem.code if active_sem else None
+
+    # Join DBCourse with the user_courses table to filter by BOTH user and semester
+    courses = db.query(DBCourse).join(user_courses).filter(
+        user_courses.c.user_id == current_user["id"],
+        user_courses.c.semester_code == semester_code
+    ).all()
+    
+    return [c.code for c in courses]
 
 
 @app.post("/api/v2/users/me/courses")
@@ -688,33 +702,34 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
         active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
         semester_code = active_sem.code if active_sem else None
 
-    #  Build the base query, dynamically hiding the pending deletes
-    query = db.query(DBAssignment)
-    if semester_code:
-        query = query.filter(DBAssignment.semester_code == semester_code)
-    if pending_ids:
-        query = query.filter(DBAssignment.id.notin_(pending_ids))
-    if optional_user:
-        # Logged-in users see public courses plus their own private tasks
-        current_user_id = optional_user["id"]
-        assignments = query.filter(
-            or_(
-                DBAssignment.course_code != "9990999",
-                and_(
-                    DBAssignment.course_code == "9990999",
-                    DBAssignment.user_id == current_user_id
-                )
-            )
-        ).all()
+    conditions = []
 
-        # Fetch their personal completed/grade data
+    if semester_code:
+        conditions.append(DBAssignment.semester_code == semester_code)
+    if pending_ids:
+        conditions.append(DBAssignment.id.notin_(pending_ids))
+    if optional_user:
+        current_user_id = optional_user["id"]
+        # Users see public courses OR their own private tasks
+        user_permission_block = or_(
+            DBAssignment.course_code != "9990999",
+            and_(
+                DBAssignment.course_code == "9990999",
+                DBAssignment.user_id == current_user_id
+            )
+        )
+        conditions.append(user_permission_block)
+
+        # Fetch personal completed/grade data
         entries = db.query(DBUserAssignment).filter(DBUserAssignment.user_id == current_user_id).all()
         user_data = {e.assignment_id: {"completed": e.is_completed, "grade": e.grade} for e in entries}
 
     else:
-        # Guests only see public courses, never the private course
-        assignments = query.filter(DBAssignment.course_code != "9990999").all()
+        # Guests ONLY see public courses
+        conditions.append(DBAssignment.course_code != "9990999")
         user_data = {}
+
+    assignments = db.query(DBAssignment).filter(and_(*conditions)).all()
 
     results = []
     for a in assignments:
