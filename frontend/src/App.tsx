@@ -927,12 +927,20 @@ export default function App() {
         if (res.ok) {
           const data: Semester[] = await res.json();
           setSemesters(data);
-          // Default selection to position 0 (Current)
+          
           const current = data.find(s => s.position === 0);
-          if (current) setSelectedSemesterCode(current.code);
+          if (current) {
+            setSelectedSemesterCode(current.code);
+          } else {
+            // SAFEGUARD: If database is empty, drop the loading screen so we aren't trapped
+            setLoading(false); 
+          }
+        } else {
+          setLoading(false); // SAFEGUARD: Server error
         }
       } catch (err) {
         console.error("Failed to fetch semesters", err);
+        setLoading(false); // SAFEGUARD: Network offline
       }
     };
     fetchSemesters();
@@ -1424,10 +1432,17 @@ export default function App() {
 
   const fetchAllData = useCallback(async () => {
     if (!selectedSemesterCode) return;
-    setLoading(true); setFetchError(null);
+
+    setLoading(true);
+    setFetchError(null);
+
     try {
-      const headers: HeadersInit = {}; if (token) headers['Authorization'] = `Bearer ${token}`;
-      const [coursesRes, assignmentsRes] = await Promise.all([fetch(`${API_BASE_URL}/courses`), fetch(`${API_BASE_URL}/assignments`, { headers })]);
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const [coursesRes, assignmentsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/courses`),
+        fetch(`${API_BASE_URL}/assignments`, { headers })
+      ]);
       if (!coursesRes.ok || !assignmentsRes.ok) throw new Error("Network error");
 
       const rawMap = await coursesRes.json(); const mappedMap: CoursesMap = {};
@@ -1465,9 +1480,9 @@ export default function App() {
         return timeA - timeB;
       }));
     } catch { setFetchError('שגיאת תקשורת עם השרת.'); } finally { setLoading(false); }
-  }, [token]);
+  }, [token, selectedSemesterCode]);
 
-  useEffect(() => { if (currentView === 'app') { fetchAllData(); } }, [fetchAllData, currentView]);
+  useEffect(() => { if (currentView === 'app' || currentView === 'summaries') { fetchAllData(); } }, [fetchAllData, currentView]);
 
   // --- Functions ---
   const syncCourses = (newCourses: string[]) => {
