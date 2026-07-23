@@ -637,18 +637,19 @@ def get_my_courses(
     current_user: dict = Depends(get_current_user), 
     db: Session = Depends(get_db)
 ):
-    # Fallback to active semester if the URL is blank
-    if not semester_code:
+    # 1. Protect against JavaScript's "undefined", "null", or empty string traps
+    if not semester_code or semester_code in ["undefined", "null", ""]:
         active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
         semester_code = active_sem.code if active_sem else None
 
-    # Join DBCourse with the user_courses table to filter by BOTH user and semester
-    courses = db.query(DBCourse).join(user_courses).filter(
+    # 2. Query the association table directly (Bypasses ORM Join complexities)
+    # This directly SELECTs the course_code column where the user and semester match.
+    rows = db.query(user_courses.c.course_code).filter(
         user_courses.c.user_id == current_user["id"],
         user_courses.c.semester_code == semester_code
     ).all()
     
-    return [c.code for c in courses]
+    return [row[0] for row in rows]
 
 
 @app.post("/api/v2/users/me/courses")
