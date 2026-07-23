@@ -627,7 +627,7 @@ export default function App() {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const [coursesRes, assignmentsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/courses`),
-        fetch(`${API_BASE_URL}/assignments`, { headers })
+        fetch(`${API_BASE_URL}/assignments?semester_code=${selectedSemesterCode}`, { headers })
       ]);
       if (!coursesRes.ok || !assignmentsRes.ok) throw new Error("Network error");
 
@@ -641,7 +641,7 @@ export default function App() {
 
       if (token) {
         try {
-          const [userRes, userCoursesRes] = await Promise.all([fetch(`${API_BASE_URL}/users/me`, { headers }), fetch(`${API_BASE_URL}/users/me/courses`, { headers })]);
+          const [userRes, userCoursesRes] = await Promise.all([fetch(`${API_BASE_URL}/users/me`, { headers }), fetch(`${API_BASE_URL}/users/me/courses?semester_code=${selectedSemesterCode}`, { headers })]);
           if (userRes.ok) {
             setUserProfile(await userRes.json());
             const dbCourses = await userCoursesRes.json();

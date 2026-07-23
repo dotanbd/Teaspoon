@@ -695,7 +695,7 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
 
     pending_ids = [int(log[0].split(":")[0]) for log in pending_logs if ":" in log[0]]
 
-    if not semester_code:
+    if not semester_code or semester_code in ["undefined", "null", ""]:
         active_sem = db.query(DBSemester).filter(DBSemester.position == 0).first()
         semester_code = active_sem.code if active_sem else None
 
@@ -727,7 +727,7 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
         user_data = {}
 
     assignments = db.query(DBAssignment).filter(and_(*conditions)).all()
-    
+
     print(f"DEBUG: Fetched {len(assignments)} assignments for semester '{semester_code}' with user context: {optional_user}")
 
     results = []
