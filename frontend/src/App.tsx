@@ -67,6 +67,7 @@ interface Summary {
   upload_date: string;
   likes: number;
   isLikedByMe: boolean;
+  semester_code: string;
 }
 
 interface ChangelogFeature {
@@ -112,13 +113,13 @@ export default function App() {
         if (res.ok) {
           const data: Semester[] = await res.json();
           setSemesters(data);
-          
+
           const current = data.find(s => s.position === 0);
           if (current) {
             setSelectedSemesterCode(current.code);
           } else {
             // SAFEGUARD: If database is empty, drop the loading screen so we aren't trapped
-            setLoading(false); 
+            setLoading(false);
           }
         } else {
           setLoading(false); // SAFEGUARD: Server error
@@ -770,7 +771,7 @@ export default function App() {
 
   const triggerCelebration = (id: number) => {
     // Play the "success" Sound
-    const popSound = new Audio('/success.mp3'); 
+    const popSound = new Audio('/success.mp3');
     popSound.volume = 0.5;
     popSound.play().catch(err => console.log("Audio blocked by browser:", err));
 
@@ -880,26 +881,26 @@ export default function App() {
   };
 
   const handleDelete = async (id: number) => {
-  const assignmentToDelete = assignments.find(a => a.id === id);
+    const assignmentToDelete = assignments.find(a => a.id === id);
 
-  // Block deletion if the assignment has any attachments
-  if (assignmentToDelete?.attachments && assignmentToDelete.attachments.length > 0) {
-    alert("לא ניתן למחוק מטלה שיש בה קבצים מצורפים. יש למחוק את הקבצים תחילה.");
-    return;
-  }
+    // Block deletion if the assignment has any attachments
+    if (assignmentToDelete?.attachments && assignmentToDelete.attachments.length > 0) {
+      alert("לא ניתן למחוק מטלה שיש בה קבצים מצורפים. יש למחוק את הקבצים תחילה.");
+      return;
+    }
 
-  if (!window.confirm("למחוק מטלה זו?")) return;
-  
-  try { 
-    await fetch(`${API_BASE_URL}/assignments/${id}`, { 
-      method: 'DELETE', 
-      headers: { 'Authorization': `Bearer ${token}` } 
-    }); 
-    setAssignments(prev => prev.filter(a => a.id !== id)); 
-  } catch { 
-    alert("שגיאה במחיקה."); 
-  }
-};
+    if (!window.confirm("למחוק מטלה זו?")) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/assignments/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setAssignments(prev => prev.filter(a => a.id !== id));
+    } catch {
+      alert("שגיאה במחיקה.");
+    }
+  };
 
   const calculateCourseGrade = (code: string): GradeSummary | null => {
     const syllabus = coursesMap[code] || {
@@ -1413,14 +1414,21 @@ export default function App() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 content-start">
-                {[...summaries]
-                  .sort((a, b) => (b.likes || 0) - (a.likes || 0))
-                  .map(summary => {
+                {(() => {
+                  // 1. Split the summaries based on the selected semester
+                  const currentSummaries = summaries.filter(s => s.semester_code === selectedSemesterCode);
+                  const pastSummaries = summaries.filter(s => s.semester_code !== selectedSemesterCode);
+
+                  // 2. Define the Card Renderer so we don't duplicate your HTML
+                  const renderSummaryCard = (summary: any, isArchive: boolean = false) => {
                     const isOwnerOrAdmin = userProfile?.id === summary.uploader_id || ['admin', 'owner'].includes(userProfile?.role || '');
 
                     return (
-                      <div key={summary.id} className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow flex flex-col group relative">
-
+                      <div
+                        key={summary.id}
+                        // Notice the dynamic opacity class added at the end for archive cards!
+                        className={`bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col group relative ${isArchive ? 'opacity-60 hover:opacity-100' : ''}`}
+                      >
                         {/* Action Buttons (Absolute corner) */}
                         {isOwnerOrAdmin && (
                           <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 z-10 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all">
@@ -1452,7 +1460,6 @@ export default function App() {
                             <h3 className="font-bold text-slate-800 dark:text-slate-100 truncate text-sm" title={summary.filename}>{summary.filename}</h3>
 
                             <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                              {/* mini avatar next to the name */}
                               {summary.uploader_picture ? (
                                 <img
                                   src={summary.uploader_picture}
@@ -1485,7 +1492,43 @@ export default function App() {
                         </div>
                       </div>
                     );
-                  })}
+                  };
+
+                  // 3. Render the split layout
+                  return (
+                    <>
+                      {/* Current Semester */}
+                      {currentSummaries.length > 0 ? (
+                        currentSummaries
+                          .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+                          .map(summary => renderSummaryCard(summary, false))
+                      ) : (
+                        <div className="col-span-full text-sm font-bold text-slate-400 text-center py-8 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                          אין סיכומים לסמסטר הנוכחי
+                        </div>
+                      )}
+
+                      {/* Past Semesters (Archive) */}
+                      {pastSummaries.length > 0 && (
+                        <>
+                          {/* Divider */}
+                          <div className="col-span-full flex items-center gap-4 mt-8 mb-2">
+                            <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-700">
+                              ארכיון סמסטרים קודמים
+                            </span>
+                            <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                          </div>
+
+                          {/* Archived Cards */}
+                          {pastSummaries
+                            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+                            .map(summary => renderSummaryCard(summary, true))}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>

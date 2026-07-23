@@ -1227,7 +1227,8 @@ def get_summaries(course_code: str, optional_user: dict = Depends(get_optional_u
             "uploader_picture": uploader.picture if uploader else "",
             "upload_date": s.upload_date.isoformat(),
             "likes": likes_count,
-            "isLikedByMe": is_liked
+            "isLikedByMe": is_liked,
+            "semester_code": s.semester_code
         })
 
     results.sort(key=lambda x: (x["likes"], x["upload_date"]), reverse=True)
