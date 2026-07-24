@@ -414,14 +414,6 @@ export default function App() {
   const [gradeForm, setGradeForm] = useState({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false });
   const [editingGradeId, setEditingGradeId] = useState<number | null>(null);
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
-  const [progressForm, setProgressForm] = useState({
-    is_redo: false,
-    is_pass_fail: false,
-    old_was_pass_fail: false,
-    credits: '',
-    new_score: '',
-    old_score: ''
-  });
   const [isProgressUpdating, setIsProgressUpdating] = useState(false);
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -993,57 +985,6 @@ export default function App() {
     return { earned: totalEarned.toFixed(1), possible: totalPossible.toFixed(1), isMagen: magenStatus !== 'none', magenStatus, unconfigured: false };
   };
 
-
-
-  const handleProgressUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-    setIsProgressUpdating(true);
-    try {
-      const payload = {
-        is_redo: progressForm.is_redo,
-        is_pass_fail: progressForm.is_pass_fail,
-        old_was_pass_fail: progressForm.old_was_pass_fail,
-        credits: parseFloat(progressForm.credits),
-        // Send null if it's a pass/fail course, otherwise parse the score
-        new_score: progressForm.is_pass_fail ? null : parseFloat(progressForm.new_score),
-        old_score: (progressForm.is_redo && !progressForm.old_was_pass_fail) ? parseFloat(progressForm.old_score) : null
-      };
-
-      const res = await fetch(`${API_BASE_URL}/users/me/progress/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setUserProfile(await res.json());
-        setIsProgressModalOpen(false);
-        // Reset all fields including the new checkboxes
-        setProgressForm({ is_redo: false, is_pass_fail: false, old_was_pass_fail: false, credits: '', new_score: '', old_score: '' });
-      } else {
-        alert("שגיאה בעדכון הנתונים");
-      }
-    } catch {
-      alert("שגיאת תקשורת");
-    } finally {
-      setIsProgressUpdating(false);
-    }
-  };
-
-  const handleProgressAction = async (action: 'undo' | 'reset') => {
-    if (action === 'reset' && !window.confirm("האם לאפס לחלוטין את חישוב הממוצע ונקודות הזכות?")) return;
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/users/me/progress/${action}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setUserProfile(await res.json());
-    } catch {
-      alert("שגיאת תקשורת");
-    }
-  };
 
   const fetchGrades = async () => {
     const res = await fetch(`${API_BASE_URL}/users/me/grades`, { headers: { 'Authorization': `Bearer ${token}` } });
