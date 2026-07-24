@@ -408,10 +408,10 @@ export default function App() {
   // Mobile Filter Modal State
   const [isMobileFilterModalOpen, setIsMobileFilterModalOpen] = useState<boolean>(false);
 
-  // Degree Progress Modal State
   // Grade Summary State
   const [grades, setGrades] = useState<any[]>([]);
   const [gradeForm, setGradeForm] = useState({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false });
+  const [gradeSearchTerm, setGradeSearchTerm] = useState('');
   const [editingGradeId, setEditingGradeId] = useState<number | null>(null);
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [isProgressUpdating, setIsProgressUpdating] = useState(false);
@@ -2607,35 +2607,62 @@ export default function App() {
               <div className="flex flex-col gap-6">
 
                 {/* GRADES LEDGER */}
-                <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50 dark:bg-slate-900/50">
-                  {grades.length === 0 ? (
-                    <p className="text-center text-slate-500 text-sm py-4">טרם הוזנו ציונים</p>
-                  ) : (
-                    grades.map(g => (
-                      <div key={g.id} className={`flex justify-between items-center bg-white dark:bg-slate-800 p-3 mb-2 rounded-lg shadow-sm ${editingGradeId === g.id ? 'border-2 border-blue-500' : 'border border-transparent'}`}>
-                        <div>
-                          <h4 className="font-bold text-sm dark:text-white flex items-center gap-2">
-                            <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500">{g.course_code}</span>
-                            {g.course_name}
-                          </h4>
-                          <p className="text-xs text-slate-500 mt-1">{g.credits} נק"ז</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`font-bold ${g.is_pass_fail ? 'text-emerald-500' : 'text-blue-500'}`}>
-                            {g.is_pass_fail ? 'עבר' : g.score}
-                          </span>
-                          <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-3 ml-1">
-                            <button type="button" onClick={() => startEditing(g)} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="ערוך ציון">
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={() => handleDeleteGrade(g.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="מחק ציון">
-                              <Trash className="w-4 h-4" />
-                            </button>
+                <div className="flex flex-col gap-3">
+
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="חיפוש קורס (שם או מספר)..."
+                      value={gradeSearchTerm}
+                      onChange={e => setGradeSearchTerm(e.target.value)}
+                      className="w-full p-2.5 pr-10 border border-slate-200 rounded-xl bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+                    />
+                    <Search className="w-4 h-4 absolute right-3 top-3 text-slate-400" />
+                  </div>
+
+                  {/* Scrollable List */}
+                  <div className="max-h-52 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50 dark:bg-slate-900/50">
+                    {grades.length === 0 ? (
+                      <p className="text-center text-slate-500 text-sm py-4">טרם הוזנו ציונים</p>
+                    ) : (
+                      grades
+                        // Filter the grades instantly based on the search term (checks both name and code)
+                        .filter(g =>
+                          g.course_name.toLowerCase().includes(gradeSearchTerm.toLowerCase()) ||
+                          g.course_code.includes(gradeSearchTerm)
+                        )
+                        .map(g => (
+                          <div key={g.id} className={`flex justify-between items-center bg-white dark:bg-slate-800 p-3 mb-2 rounded-lg shadow-sm transition-all ${editingGradeId === g.id ? 'border-2 border-blue-500 shadow-md' : 'border border-transparent'}`}>
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-sm dark:text-white flex items-center gap-2 truncate">
+                                <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 shrink-0">{g.course_code}</span>
+                                <span className="truncate" title={g.course_name}>{g.course_name}</span>
+                              </h4>
+                              <p className="text-xs text-slate-500 mt-1">{g.credits} נק"ז</p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className={`font-bold ${g.is_pass_fail ? 'text-emerald-500' : 'text-blue-500'}`}>
+                                {g.is_pass_fail ? 'עבר' : g.score}
+                              </span>
+                              <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-3 ml-1">
+                                <button type="button" onClick={() => startEditing(g)} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="ערוך ציון">
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button type="button" onClick={() => handleDeleteGrade(g.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="מחק ציון">
+                                  <Trash className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                        ))
+                    )}
+
+                    {/* Show empty state if search yields no results */}
+                    {grades.length > 0 && grades.filter(g => g.course_name.toLowerCase().includes(gradeSearchTerm.toLowerCase()) || g.course_code.includes(gradeSearchTerm)).length === 0 && (
+                      <p className="text-center text-slate-500 text-sm py-4">לא נמצאו קורסים תואמים לחיפוש</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* ADD/EDIT GRADE FORM */}
