@@ -1755,7 +1755,10 @@ export default function App() {
 
                           {/* Degree Average */}
                           <div
-                            onClick={() => setIsProgressModalOpen(true)}
+                            onClick={() => {
+                              setIsProgressModalOpen(true);
+                              fetchGrades();
+                            }}
                             className="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-slate-200/50 dark:border-slate-700 shadow-sm flex flex-col justify-between group/card relative cursor-pointer hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
                           >
                             <div className="flex justify-between items-start mb-4">
