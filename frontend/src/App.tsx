@@ -993,6 +993,13 @@ export default function App() {
 
   const handleGradeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const courseCodeRegex = /^\d{3}0\d{3}$/;
+    if (!courseCodeRegex.test(gradeForm.course_code)) {
+      alert("מספר הקורס לא תקין. נא להזין מספר בן 7 ספרות (לדוגמה: 0440102)");
+      return; // Stop the submission immediately
+    }
+
     setIsProgressUpdating(true);
 
     const payload = {
@@ -2646,7 +2653,32 @@ export default function App() {
                   </h3>
 
                   <div className="flex gap-2">
-                    <input required type="text" placeholder="מספר קורס" value={gradeForm.course_code} onChange={e => setGradeForm({ ...gradeForm, course_code: e.target.value })} className="w-1/3 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input
+                      required
+                      type="text"
+                      placeholder="מספר קורס"
+                      value={gradeForm.course_code}
+                      onChange={e => {
+                        const newCode = e.target.value;
+                        let newName = gradeForm.course_name;
+
+                        // Check if the typed code matches an existing course in your 'courses' state array
+                        if (newCode.length >= 6) {
+                          // Note: Make sure 'courses' matches the actual name of your state array!
+                          const matchedCourse = coursesMap[newCode];
+                          if (matchedCourse) {
+                            newName = matchedCourse.name; // Auto-fill the name!
+                          }
+                        }
+
+                        setGradeForm({
+                          ...gradeForm,
+                          course_code: newCode,
+                          course_name: newName
+                        });
+                      }}
+                      className="w-1/3 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                     <input required type="text" placeholder="שם הקורס" value={gradeForm.course_name} onChange={e => setGradeForm({ ...gradeForm, course_name: e.target.value })} className="w-2/3 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
 

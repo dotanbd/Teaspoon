@@ -1,6 +1,7 @@
+import re
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class AssignmentCreate(BaseModel):
@@ -99,3 +100,9 @@ class GradeCreate(BaseModel):
     credits: float
     score: Optional[float] = None
     is_pass_fail: bool = False
+
+    @field_validator('course_code')
+    def validate_course_code(cls, value):
+        if not re.match(r"^\d{3}0\d{3}$", value):
+            raise ValueError('Course code must be exactly 7 digits (XXX0XXX)')
+        return value
