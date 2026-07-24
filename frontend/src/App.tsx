@@ -2572,77 +2572,105 @@ export default function App() {
         </div>
       )}
 
-      {/* Degree Progress Modal */}
-      {isProgressModalOpen && token && (
-        <div className="flex flex-col gap-6">
-          {/* GRADES LEDGER */}
-          <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50 dark:bg-slate-900/50">
-            {grades.length === 0 ? (
-              <p className="text-center text-slate-500 text-sm py-4">טרם הוזנו ציונים</p>
-            ) : (
-              grades.map(g => (
-                <div key={g.id} className={`flex justify-between items-center bg-white dark:bg-slate-800 p-3 mb-2 rounded-lg shadow-sm ${editingGradeId === g.id ? 'border-2 border-blue-500' : 'border border-transparent'}`}>
-                  <div>
-                    <h4 className="font-bold text-sm dark:text-white flex items-center gap-2">
-                      <span className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500">{g.course_code}</span>
-                      {g.course_name}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">{g.credits} נק"ז</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`font-bold ${g.is_pass_fail ? 'text-emerald-500' : 'text-blue-500'}`}>
-                      {g.is_pass_fail ? 'עבר' : g.score}
-                    </span>
-                    <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-3 ml-1">
-                      <button onClick={() => startEditing(g)} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="ערוך ציון">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDeleteGrade(g.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="מחק ציון">
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+      {/* GRADES / PROGRESS MODAL */}
+      {isProgressModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl flex flex-col relative max-h-[90vh] overflow-hidden border border-slate-200 dark:border-slate-700">
 
-          {/* ADD/EDIT GRADE FORM */}
-          <form onSubmit={handleGradeSubmit} className="flex flex-col gap-4 border-t border-slate-200 dark:border-slate-700 pt-4 relative">
-
-            {/* Cancel Edit Button */}
-            {editingGradeId && (
-              <button type="button" onClick={() => { setEditingGradeId(null); setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false }); }} className="absolute top-4 left-0 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white">
-                בטל עריכה
+            {/* MODAL HEADER */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                גיליון ציונים
+              </h2>
+              <button
+                onClick={() => {
+                  setIsProgressModalOpen(false);
+                  setEditingGradeId(null);
+                  setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false });
+                }}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+              >
+                {/* Ensure you have 'X' imported from lucide-react! */}
+                <X className="w-5 h-5" />
               </button>
-            )}
-
-            <h3 className="font-bold text-slate-800 dark:text-white text-sm">
-              {editingGradeId ? 'ערוך ציון' : 'הוסף ציון חדש'}
-            </h3>
-
-            <div className="flex gap-2">
-              <input required type="text" placeholder="מספר קורס (6-7 ספרות)" value={gradeForm.course_code} onChange={e => setGradeForm({ ...gradeForm, course_code: e.target.value })} className="w-1/3 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
-              <input required type="text" placeholder="שם הקורס" value={gradeForm.course_name} onChange={e => setGradeForm({ ...gradeForm, course_name: e.target.value })} className="w-2/3 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
             </div>
 
-            <div className="flex gap-2">
-              <input required type="number" step="0.5" placeholder='נק"ז (לדוגמה: 3.5)' value={gradeForm.credits} onChange={e => setGradeForm({ ...gradeForm, credits: e.target.value })} className="w-1/2 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
+            {/* MODAL BODY (SCROLLABLE) */}
+            <div className="p-5 sm:p-6 overflow-y-auto">
+              <div className="flex flex-col gap-6">
 
-              {!gradeForm.is_pass_fail && (
-                <input required type="number" placeholder="ציון (0-100)" value={gradeForm.score} onChange={e => setGradeForm({ ...gradeForm, score: e.target.value })} className="w-1/2 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
-              )}
+                {/* GRADES LEDGER */}
+                <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50 dark:bg-slate-900/50">
+                  {grades.length === 0 ? (
+                    <p className="text-center text-slate-500 text-sm py-4">טרם הוזנו ציונים</p>
+                  ) : (
+                    grades.map(g => (
+                      <div key={g.id} className={`flex justify-between items-center bg-white dark:bg-slate-800 p-3 mb-2 rounded-lg shadow-sm ${editingGradeId === g.id ? 'border-2 border-blue-500' : 'border border-transparent'}`}>
+                        <div>
+                          <h4 className="font-bold text-sm dark:text-white flex items-center gap-2">
+                            <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500">{g.course_code}</span>
+                            {g.course_name}
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-1">{g.credits} נק"ז</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`font-bold ${g.is_pass_fail ? 'text-emerald-500' : 'text-blue-500'}`}>
+                            {g.is_pass_fail ? 'עבר' : g.score}
+                          </span>
+                          <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-3 ml-1">
+                            <button type="button" onClick={() => startEditing(g)} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="ערוך ציון">
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button type="button" onClick={() => handleDeleteGrade(g.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="מחק ציון">
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* ADD/EDIT GRADE FORM */}
+                <form onSubmit={handleGradeSubmit} className="flex flex-col gap-4 border-t border-slate-200 dark:border-slate-700 pt-5 relative">
+
+                  {/* Cancel Edit Button */}
+                  {editingGradeId && (
+                    <button type="button" onClick={() => { setEditingGradeId(null); setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false }); }} className="absolute top-5 left-0 text-xs font-bold text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                      בטל עריכה
+                    </button>
+                  )}
+
+                  <h3 className="font-bold text-slate-800 dark:text-white text-sm">
+                    {editingGradeId ? 'ערוך ציון' : 'הוסף ציון חדש'}
+                  </h3>
+
+                  <div className="flex gap-2">
+                    <input required type="text" placeholder="מספר קורס" value={gradeForm.course_code} onChange={e => setGradeForm({ ...gradeForm, course_code: e.target.value })} className="w-1/3 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input required type="text" placeholder="שם הקורס" value={gradeForm.course_name} onChange={e => setGradeForm({ ...gradeForm, course_name: e.target.value })} className="w-2/3 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input required type="number" step="0.5" placeholder='נק"ז (לדוגמה: 3.5)' value={gradeForm.credits} onChange={e => setGradeForm({ ...gradeForm, credits: e.target.value })} className="w-1/2 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+
+                    {!gradeForm.is_pass_fail && (
+                      <input required type="number" placeholder="ציון (0-100)" value={gradeForm.score} onChange={e => setGradeForm({ ...gradeForm, score: e.target.value })} className="w-1/2 p-2.5 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    )}
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer mt-1">
+                    <input type="checkbox" checked={gradeForm.is_pass_fail} onChange={e => setGradeForm({ ...gradeForm, is_pass_fail: e.target.checked, score: '' })} className="w-4 h-4 rounded text-blue-500 focus:ring-blue-500" />
+                    קורס עובר/לא עבר (ללא ציון)
+                  </label>
+
+                  <button disabled={isProgressUpdating} type="submit" className={`w-full py-3 text-white font-bold rounded-xl transition-all duration-200 mt-2 ${editingGradeId ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/25 shadow-lg' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25 shadow-lg'}`}>
+                    {isProgressUpdating ? 'מעדכן...' : (editingGradeId ? 'שמור שינויים' : 'הוסף לגיליון')}
+                  </button>
+                </form>
+
+              </div>
             </div>
-
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer">
-              <input type="checkbox" checked={gradeForm.is_pass_fail} onChange={e => setGradeForm({ ...gradeForm, is_pass_fail: e.target.checked, score: '' })} className="w-4 h-4 rounded text-blue-500" />
-              קורס עובר/לא עבר (בינארי)
-            </label>
-
-            <button disabled={isProgressUpdating} type="submit" className={`w-full py-2.5 text-white font-bold rounded-xl transition-colors mt-2 ${editingGradeId ? 'bg-blue-500 hover:bg-blue-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
-              {isProgressUpdating ? 'מעדכן...' : (editingGradeId ? 'שמור שינויים' : 'הוסף לגיליון')}
-            </button>
-          </form>
+          </div>
         </div>
       )}
 
