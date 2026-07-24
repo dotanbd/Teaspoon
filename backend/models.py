@@ -166,4 +166,16 @@ class DBChangelog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class DBUserGrade(Base):
+    __tablename__ = "user_grades"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    course_code = Column(String, ForeignKey("courses.code"), index=True, nullable=False) # The new relational link
+    course_name = Column(String, nullable=False) # Keep this so we remember the user's specific text input
+    credits = Column(Float, nullable=False)
+    score = Column(Float, nullable=True) 
+    is_pass_fail = Column(Boolean, default=False)
+
+
 Base.metadata.create_all(bind=engine)

@@ -48,6 +48,7 @@ from models import (
     DBUserAssignment,
     DBUserCourse,
     DBUserStat,
+    DBUserGrade,
     SessionLocal,
     engine,
 )
@@ -59,6 +60,7 @@ from schemas import (
     ChangelogPayload,
     CourseCodeUpdate,
     CourseUpdate,
+    GradeCreate,
     GradeUpdate,
     MergeAssignmentsRequest,
     MoodleSyncRequest,
@@ -176,6 +178,7 @@ def touch_course_vitality(db: Session, course_code: str):
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 
+# --- Helper Functions ---
 def get_optional_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     if not token:
         return None
@@ -212,6 +215,37 @@ def get_write_user(current_user: dict = Depends(get_current_user), db: Session =
     if user and user.role == "restricted":
         raise HTTPException(status_code=403, detail="Your account has been restricted from making edits.")
     return current_user  # Returns the normal payload so your routes don't break
+
+
+# --- Grades Helper Functions ---
+def ensure_course_exists(db: Session, code: str, name: str):
+    existing = db.query(DBCourse).filter(DBCourse.code == code).first()
+    if not existing:
+        new_course = DBCourse(code=code, name=name)
+        db.add(new_course)
+        db.commit()
+
+
+def recalculate_user_gpa(user_id: int, db: Session):
+    """Helper function to recalculate the user's running totals based on actual rows"""
+    user = db.query(DBUser).filter(DBUser.id == user_id).first()
+    grades = db.query(DBUserGrade).filter(DBUserGrade.user_id == user_id).all()
+    
+    t_credits, w_sum, b_credits = 0.0, 0.0, 0.0
+    
+    for g in grades:
+        if g.is_pass_fail:
+            b_credits += g.credits
+        else:
+            t_credits += g.credits
+            w_sum += ((g.score or 0) * g.credits)
+            
+    user.total_credits = t_credits
+    user.weighted_sum = w_sum
+    user.binary_credits = b_credits
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 # -- MinIO helper functions --
@@ -980,6 +1014,58 @@ def sync_moodle_calendar_api(req: MoodleSyncRequest, db: Session = Depends(get_d
         print(f"Manual Sync Error: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to parse Moodle calendar")
+
+
+# --- Grades Routes ---
+@app.get("/api/v2/users/me/grades")
+def get_my_grades(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(DBUserGrade).filter(DBUserGrade.user_id == current_user['id']).all()
+
+
+@app.post("/api/v2/users/me/grades")
+def add_my_grade(grade: GradeCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 1. Create the course in the global table if it doesn't exist yet
+    ensure_course_exists(db, grade.course_code, grade.course_name)
+
+    # 2. Add the grade
+    new_grade = DBUserGrade(
+        user_id=current_user['id'],
+        course_code=grade.course_code,
+        course_name=grade.course_name,
+        credits=grade.credits,
+        score=grade.score if not grade.is_pass_fail else None,
+        is_pass_fail=grade.is_pass_fail
+    )
+    db.add(new_grade)
+    db.commit()
+    return recalculate_user_gpa(current_user['id'], db)
+
+
+@app.put("/api/v2/users/me/grades/{grade_id}")
+def edit_my_grade(grade_id: int, grade: GradeCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    existing_grade = db.query(DBUserGrade).filter(DBUserGrade.id == grade_id, DBUserGrade.user_id == current_user['id']).first()
+    if not existing_grade:
+        raise HTTPException(status_code=404, detail="Grade not found")
+
+    ensure_course_exists(db, grade.course_code, grade.course_name)
+
+    existing_grade.course_code = grade.course_code
+    existing_grade.course_name = grade.course_name
+    existing_grade.credits = grade.credits
+    existing_grade.score = grade.score if not grade.is_pass_fail else None
+    existing_grade.is_pass_fail = grade.is_pass_fail
+
+    db.commit()
+    return recalculate_user_gpa(current_user['id'], db)
+
+
+@app.delete("/api/v2/users/me/grades/{grade_id}")
+def delete_my_grade(grade_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    grade = db.query(DBUserGrade).filter(DBUserGrade.id == grade_id, DBUserGrade.user_id == current_user['id']).first()
+    if grade:
+        db.delete(grade)
+        db.commit()
+    return recalculate_user_gpa(current_user['id'], db)
 
 
 # --- Calendar Routes ---

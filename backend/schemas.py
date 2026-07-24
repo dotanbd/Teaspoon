@@ -91,3 +91,11 @@ class ChangelogPayload(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: str
+
+
+class GradeCreate(BaseModel):
+    course_code: str
+    course_name: str
+    credits: float
+    score: Optional[float] = None
+    is_pass_fail: bool = False

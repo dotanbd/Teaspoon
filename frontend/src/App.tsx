@@ -409,6 +409,10 @@ export default function App() {
   const [isMobileFilterModalOpen, setIsMobileFilterModalOpen] = useState<boolean>(false);
 
   // Degree Progress Modal State
+  // Grade Summary State
+  const [grades, setGrades] = useState<any[]>([]);
+  const [gradeForm, setGradeForm] = useState({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false });
+  const [editingGradeId, setEditingGradeId] = useState<number | null>(null);
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [progressForm, setProgressForm] = useState({
     is_redo: false,
@@ -1038,6 +1042,67 @@ export default function App() {
       if (res.ok) setUserProfile(await res.json());
     } catch {
       alert("שגיאת תקשורת");
+    }
+  };
+
+  const fetchGrades = async () => {
+    const res = await fetch(`${API_BASE_URL}/users/me/grades`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) setGrades(await res.json());
+  };
+
+  const handleGradeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProgressUpdating(true);
+
+    const payload = {
+      course_code: gradeForm.course_code,
+      course_name: gradeForm.course_name,
+      credits: parseFloat(gradeForm.credits),
+      is_pass_fail: gradeForm.is_pass_fail,
+      score: gradeForm.is_pass_fail ? null : parseFloat(gradeForm.score)
+    };
+
+    const url = editingGradeId
+      ? `${API_BASE_URL}/users/me/grades/${editingGradeId}`
+      : `${API_BASE_URL}/users/me/grades`;
+
+    const method = editingGradeId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      setUserProfile(await res.json());
+      setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false });
+      setEditingGradeId(null);
+      fetchGrades();
+    }
+    setIsProgressUpdating(false);
+  };
+
+  // Helper to pre-fill the form when the Edit button is clicked
+  const startEditing = (g: any) => {
+    setEditingGradeId(g.id);
+    setGradeForm({
+      course_code: g.course_code,
+      course_name: g.course_name,
+      credits: g.credits.toString(),
+      score: g.score ? g.score.toString() : '',
+      is_pass_fail: g.is_pass_fail
+    });
+  };
+
+  const handleDeleteGrade = async (gradeId: number) => {
+    const res = await fetch(`${API_BASE_URL}/users/me/grades/${gradeId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      setUserProfile(await res.json()); // Updates header GPA instantly!
+      fetchGrades();
     }
   };
 
@@ -2565,81 +2630,75 @@ export default function App() {
 
       {/* Degree Progress Modal */}
       {isProgressModalOpen && token && (
-        <div className="fixed inset-0 bg-slate-900/50 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700">
-            <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-blue-500" />
-                עדכון ממוצע התואר
-              </h2>
-              <button onClick={() => setIsProgressModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl leading-none">&times;</button>
+        <div className="flex flex-col gap-6">
+          {/* GRADES LEDGER */}
+          <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50 dark:bg-slate-900/50">
+            {grades.length === 0 ? (
+              <p className="text-center text-slate-500 text-sm py-4">טרם הוזנו ציונים</p>
+            ) : (
+              grades.map(g => (
+                <div key={g.id} className={`flex justify-between items-center bg-white dark:bg-slate-800 p-3 mb-2 rounded-lg shadow-sm ${editingGradeId === g.id ? 'border-2 border-blue-500' : 'border border-transparent'}`}>
+                  <div>
+                    <h4 className="font-bold text-sm dark:text-white flex items-center gap-2">
+                      <span className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500">{g.course_code}</span>
+                      {g.course_name}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">{g.credits} נק"ז</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`font-bold ${g.is_pass_fail ? 'text-emerald-500' : 'text-blue-500'}`}>
+                      {g.is_pass_fail ? 'עבר' : g.score}
+                    </span>
+                    <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-3 ml-1">
+                      <button onClick={() => startEditing(g)} className="text-slate-400 hover:text-blue-500 transition-colors p-1" title="ערוך ציון">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDeleteGrade(g.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="מחק ציון">
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ADD/EDIT GRADE FORM */}
+          <form onSubmit={handleGradeSubmit} className="flex flex-col gap-4 border-t border-slate-200 dark:border-slate-700 pt-4 relative">
+
+            {/* Cancel Edit Button */}
+            {editingGradeId && (
+              <button type="button" onClick={() => { setEditingGradeId(null); setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false }); }} className="absolute top-4 left-0 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white">
+                בטל עריכה
+              </button>
+            )}
+
+            <h3 className="font-bold text-slate-800 dark:text-white text-sm">
+              {editingGradeId ? 'ערוך ציון' : 'הוסף ציון חדש'}
+            </h3>
+
+            <div className="flex gap-2">
+              <input required type="text" placeholder="מספר קורס (6-7 ספרות)" value={gradeForm.course_code} onChange={e => setGradeForm({ ...gradeForm, course_code: e.target.value })} className="w-1/3 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
+              <input required type="text" placeholder="שם הקורס" value={gradeForm.course_name} onChange={e => setGradeForm({ ...gradeForm, course_name: e.target.value })} className="w-2/3 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
             </div>
 
-            <form onSubmit={handleProgressUpdate} className="p-6 space-y-5">
+            <div className="flex gap-2">
+              <input required type="number" step="0.5" placeholder='נק"ז (לדוגמה: 3.5)' value={gradeForm.credits} onChange={e => setGradeForm({ ...gradeForm, credits: e.target.value })} className="w-1/2 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
 
-              {/* Type Switcher */}
-              <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
-                <button type="button" onClick={() => setProgressForm(prev => ({ ...prev, is_redo: false }))} className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-colors ${!progressForm.is_redo ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500'}`}>
-                  קורס חדש
-                </button>
-                <button type="button" onClick={() => setProgressForm(prev => ({ ...prev, is_redo: true }))} className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-colors ${progressForm.is_redo ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500'}`}>
-                  שיפור ציון (Redo)
-                </button>
-              </div>
+              {!gradeForm.is_pass_fail && (
+                <input required type="number" placeholder="ציון (0-100)" value={gradeForm.score} onChange={e => setGradeForm({ ...gradeForm, score: e.target.value })} className="w-1/2 p-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm" />
+              )}
+            </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">נקודות זכות לקורס</label>
-                  <input required type="number" step="0.5" min="0" placeholder="לדוגמה: 3.5" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={progressForm.credits} onChange={e => setProgressForm({ ...progressForm, credits: e.target.value })} />
-                </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer">
+              <input type="checkbox" checked={gradeForm.is_pass_fail} onChange={e => setGradeForm({ ...gradeForm, is_pass_fail: e.target.checked, score: '' })} className="w-4 h-4 rounded text-blue-500" />
+              קורס עובר/לא עבר (בינארי)
+            </label>
 
-                {progressForm.is_redo && (
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={progressForm.old_was_pass_fail} onChange={e => setProgressForm({ ...progressForm, old_was_pass_fail: e.target.checked })} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">הקורס הקודם היה בינארי (עובר/לא עובר)</span>
-                    </label>
-
-                    {!progressForm.old_was_pass_fail && (
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ציון קודם</label>
-                        <input required type="number" min="0" max="100" placeholder="הציון שברצונך לדרוס" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-slate-100" value={progressForm.old_score} onChange={e => setProgressForm({ ...progressForm, old_score: e.target.value })} />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={progressForm.is_pass_fail} onChange={e => setProgressForm({ ...progressForm, is_pass_fail: e.target.checked })} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">קורס בינארי (עובר/לא עובר)</span>
-                  </label>
-
-                  {!progressForm.is_pass_fail && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{progressForm.is_redo ? 'ציון חדש' : 'ציון סופי'}</label>
-                      <input required type="number" min="0" max="100" placeholder="לדוגמה: 95" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-slate-100" value={progressForm.new_score} onChange={e => setProgressForm({ ...progressForm, new_score: e.target.value })} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <button type="submit" disabled={isProgressUpdating} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
-                {isProgressUpdating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'שמור והוסף לממוצע'}
-              </button>
-
-              {/* Typo Correction Tools */}
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                <button type="button" onClick={() => handleProgressAction('undo')} disabled={userProfile?.total_credits === userProfile?.previous_total_credits && userProfile?.weighted_sum === userProfile?.previous_weighted_sum && userProfile?.binary_credits === userProfile?.previous_binary_credits} className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 transition-colors">
-                  ↩ בטל פעולה אחרונה
-                </button>
-                <button type="button" onClick={() => handleProgressAction('reset')} className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors">
-                  איפוס נתונים
-                </button>
-              </div>
-
-            </form>
-          </div>
+            <button disabled={isProgressUpdating} type="submit" className={`w-full py-2.5 text-white font-bold rounded-xl transition-colors mt-2 ${editingGradeId ? 'bg-blue-500 hover:bg-blue-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+              {isProgressUpdating ? 'מעדכן...' : (editingGradeId ? 'שמור שינויים' : 'הוסף לגיליון')}
+            </button>
+          </form>
         </div>
       )}
 
