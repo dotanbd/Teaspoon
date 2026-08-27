@@ -38,7 +38,7 @@ const DynamicChangelogIcon = ({ name, className }: { name: string, className?: s
 
 // --- TypeScript Interfaces ---
 interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; likes?: number; isLikedByMe?: boolean; }
-interface Assignment { id: number; title: string; course_code: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; }
+interface Assignment { id: number; title: string; course_code: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; semester_code: string; }
 interface Semester {
   code: string;
   name: string;
