@@ -861,18 +861,6 @@ const AdminDashboard = ({
 
             <form onSubmit={handleAdvanceSemester} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">קוד סמסטר (באנגלית, לדוגמה: 2026_SUMMER)</label>
-                <input
-                  required
-                  type="text"
-                  value={advancePayload.new_semester_code}
-                  onChange={e => setAdvancePayload(prev => ({ ...prev, new_semester_code: e.target.value.toUpperCase() }))}
-                  className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
-                  dir="ltr"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">שם סמסטר לתצוגה (לדוגמה: סמסטר קיץ תשפ"ו)</label>
                 <input
                   required
@@ -888,7 +876,7 @@ const AdminDashboard = ({
                   <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">עונה</label>
                   <select
                     value={advancePayload.term}
-                    onChange={e => setAdvancePayload(prev => ({ ...prev, term: e.target.value }))}
+                    onChange={e => setAdvancePayload(prev => ({ ...prev, term: e.target.value, new_semester_code: `${advancePayload.year}_${parseInt(e.target.value)}` }))}
                     className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
                   >
                     <option value="WINTER">חורף (WINTER)</option>
@@ -902,7 +890,7 @@ const AdminDashboard = ({
                     required
                     type="number"
                     value={advancePayload.year}
-                    onChange={e => setAdvancePayload(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                    onChange={e => setAdvancePayload(prev => ({ ...prev, year: parseInt(e.target.value), new_semester_code: `${parseInt(e.target.value)}_${advancePayload.term}` }))}
                     className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
                   />
                 </div>
