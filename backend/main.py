@@ -515,16 +515,26 @@ async def google_auth_callback(code: str, db: Session = Depends(get_db)):
 @app.get("/api/v2/users/me")
 def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
+    
+    ACTIVE_SEMESTER = get_active_semester_code(db)
 
-    # Calculate valid likes from this current active semester (Attachments)
+    # Calculate valid likes from this current active semester (Attachments -> Assignments)
     semester_likes = db.query(DBAttachmentLike).join(
         DBAttachment, DBAttachmentLike.attachment_id == DBAttachment.id
-    ).filter(DBAttachment.user_id == user.id).count()
+    ).join(
+        DBAssignment, DBAttachment.assignment_id == DBAssignment.id
+    ).filter(
+        DBAttachment.user_id == user.id,
+        DBAssignment.semester_code == ACTIVE_SEMESTER
+    ).count()
 
     # Calculate likes from Summaries
     summary_likes = db.query(DBSummaryLike).join(
         DBSummary, DBSummaryLike.summary_id == DBSummary.id
-    ).filter(DBSummary.uploader_id == user.id).count()
+    ).filter(
+        DBSummary.uploader_id == user.id,
+        DBSummary.semester_code == ACTIVE_SEMESTER
+    ).count()
 
     # Grab their preserved "Vault" score from previous semesters
     stats = db.query(DBUserStat).filter(DBUserStat.user_id == user.id).first()
@@ -1782,27 +1792,36 @@ def merge_assignments_manual(req: MergeAssignmentsRequest, db: Session = Depends
 
 @app.get("/api/v2/users/leaderboard")
 def get_leaderboard(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Set your active semester here (or import it from your settings)
+    ACTIVE_SEMESTER = get_active_semester_code(db)
+
     # Fetch all base data
     users = db.query(DBUser).all()
     stats = db.query(DBUserStat).all()
     stats_map = {s.user_id: s.lifetime_likes for s in stats}
 
-    # Dynamically count active semester likes (Attachments)
+    # 1. Dynamically count active semester likes (Attachments -> Assignments -> Semester)
     semester_likes = db.query(
         DBAttachment.user_id,
         func.count(DBAttachmentLike.id).label("likes")
     ).join(
         DBAttachmentLike, DBAttachment.id == DBAttachmentLike.attachment_id
+    ).join(
+        DBAssignment, DBAttachment.assignment_id == DBAssignment.id  # New Join!
+    ).filter(
+        DBAssignment.semester_code == ACTIVE_SEMESTER                # New Filter!
     ).group_by(DBAttachment.user_id).all()
 
     semester_map = {row.user_id: row.likes for row in semester_likes}
 
-    # Dynamically count active semester likes (Summaries)
+    # 2. Dynamically count active semester likes (Summaries -> Semester)
     summary_likes_query = db.query(
         DBSummary.uploader_id,
         func.count(DBSummaryLike.id).label("likes")
     ).join(
         DBSummaryLike, DBSummary.id == DBSummaryLike.summary_id
+    ).filter(
+        DBSummary.semester_code == ACTIVE_SEMESTER                   # New Filter!
     ).group_by(DBSummary.uploader_id).all()
 
     summary_map = {row.uploader_id: row.likes for row in summary_likes_query}
@@ -1812,8 +1831,10 @@ def get_leaderboard(current_user: dict = Depends(get_current_user), db: Session 
     all_time_board = []
 
     for u in users:
-        # Merge both maps for the total semester score
+        # Merge both maps for the total active semester score
         sem_score = semester_map.get(u.id, 0) + summary_map.get(u.id, 0)
+        
+        # Lifetime score safely adds the historical stats + the active rolling score
         lifetime_score = sem_score + stats_map.get(u.id, 0)
 
         base_user = {
@@ -1851,7 +1872,6 @@ def get_leaderboard(current_user: dict = Depends(get_current_user), db: Session 
         "semester": process_board(semester_board),
         "all_time": process_board(all_time_board)
     }
-
 
 @app.post("/api/v2/users/me/progress/update")
 def update_degree_progress(req: ProgressUpdateReq, db: Session = Depends(get_db),
