@@ -1679,7 +1679,7 @@ export default function App() {
                   const code = typeof c === 'string' ? c : (c as any).code; // Safety check in case myCourses holds objects
 
                   // 1. Get assignments for this specific course
-                  const courseAssignments = assignments.filter(a => a.course_code === code && a.type !== 'other');
+                  const courseAssignments = assignments.filter(a => a.course_code === code && a.semester_code === selectedSemesterCode);
 
                   let courseRequired = courseAssignments.length;
                   let courseCompleted = courseAssignments.filter(a => a.isCompleted).length;

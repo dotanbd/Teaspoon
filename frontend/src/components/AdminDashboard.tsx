@@ -861,7 +861,7 @@ const AdminDashboard = ({
 
             <form onSubmit={handleAdvanceSemester} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">שם סמסטר לתצוגה (לדוגמה: סמסטר קיץ תשפ"ו)</label>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">שם סמסטר לתצוגה (לדוגמה: קיץ תשפ"ו)</label>
                 <input
                   required
                   type="text"
