@@ -2470,7 +2470,7 @@ export default function App() {
                   {/* The Podium */}
                   <div className="space-y-3">
                     {leaderboardData[activeLeaderboardTab].top_3.length === 0 ? (
-                      <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-4">עדיין אין לייקים בקהילה. היו הראשונים להעלות פתרון!</p>
+                      <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-4">עדיין אין לייקים בסמסטר הנוכחי. היו הראשונים להעלות פתרון!</p>
                     ) : (
                       leaderboardData[activeLeaderboardTab].top_3.map((user, idx) => {
                         const isGold = idx === 0;
