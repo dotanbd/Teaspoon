@@ -1781,7 +1781,7 @@ def merge_assignments_manual(req: MergeAssignmentsRequest, db: Session = Depends
 
 @app.get("/api/v2/users/leaderboard")
 def get_leaderboard(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    ACTIVE_SEMESTER = "2026_SPRING"
+    ACTIVE_SEMESTER = get_active_semester_code(db)
     users = db.query(DBUser).all()
     
     # Grab vault stats just in case you manually granted points
