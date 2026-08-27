@@ -516,29 +516,18 @@ async def google_auth_callback(code: str, db: Session = Depends(get_db)):
 def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(DBUser).filter(DBUser.id == current_user["id"]).first()
     
-    ACTIVE_SEMESTER = get_active_semester_code(db)
-
-    # Calculate valid likes from this current active semester (Attachments -> Assignments)
-    semester_likes = db.query(DBAttachmentLike).join(
+    # Calculate ALL likes across all semesters (No semester_code filter)
+    total_attach_likes = db.query(DBAttachmentLike).join(
         DBAttachment, DBAttachmentLike.attachment_id == DBAttachment.id
-    ).join(
-        DBAssignment, DBAttachment.assignment_id == DBAssignment.id
-    ).filter(
-        DBAttachment.user_id == user.id,
-        DBAssignment.semester_code == ACTIVE_SEMESTER
-    ).count()
+    ).filter(DBAttachment.user_id == user.id).count()
 
-    # Calculate likes from Summaries
-    summary_likes = db.query(DBSummaryLike).join(
+    total_summary_likes = db.query(DBSummaryLike).join(
         DBSummary, DBSummaryLike.summary_id == DBSummary.id
-    ).filter(
-        DBSummary.uploader_id == user.id,
-        DBSummary.semester_code == ACTIVE_SEMESTER
-    ).count()
+    ).filter(DBSummary.uploader_id == user.id).count()
 
-    # Grab their preserved "Vault" score from previous semesters
+    # Add any manual vault points
     stats = db.query(DBUserStat).filter(DBUserStat.user_id == user.id).first()
-    lifetime = stats.lifetime_likes if stats else 0
+    vault_likes = stats.lifetime_likes if stats else 0
 
     return {
         "id": user.id,
@@ -546,7 +535,7 @@ def get_me(current_user: dict = Depends(get_current_user), db: Session = Depends
         "name": user.name,
         "picture": user.picture,
         "role": user.role,
-        "totalLikesReceived": semester_likes + summary_likes + lifetime,
+        "totalLikesReceived": total_attach_likes + total_summary_likes + vault_likes,
         "last_seen_version": user.last_seen_version or 0,
         "moodle_ics_url": user.moodle_ics_url,
         "total_credits": getattr(user, 'total_credits', 0.0),
@@ -1792,86 +1781,66 @@ def merge_assignments_manual(req: MergeAssignmentsRequest, db: Session = Depends
 
 @app.get("/api/v2/users/leaderboard")
 def get_leaderboard(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Set your active semester here (or import it from your settings)
-    ACTIVE_SEMESTER = get_active_semester_code(db)
-
-    # Fetch all base data
+    ACTIVE_SEMESTER = "2026_SPRING"
     users = db.query(DBUser).all()
+    
+    # Grab vault stats just in case you manually granted points
     stats = db.query(DBUserStat).all()
     stats_map = {s.user_id: s.lifetime_likes for s in stats}
 
-    # 1. Dynamically count active semester likes (Attachments -> Assignments -> Semester)
-    semester_likes = db.query(
-        DBAttachment.user_id,
-        func.count(DBAttachmentLike.id).label("likes")
-    ).join(
-        DBAttachmentLike, DBAttachment.id == DBAttachmentLike.attachment_id
-    ).join(
-        DBAssignment, DBAttachment.assignment_id == DBAssignment.id  # New Join!
-    ).filter(
-        DBAssignment.semester_code == ACTIVE_SEMESTER                # New Filter!
-    ).group_by(DBAttachment.user_id).all()
+    # --- SEMESTER LIKES (Filtered) ---
+    sem_attachments = db.query(DBAttachment.user_id, func.count(DBAttachmentLike.id).label("likes")) \
+        .join(DBAttachmentLike, DBAttachment.id == DBAttachmentLike.attachment_id) \
+        .join(DBAssignment, DBAttachment.assignment_id == DBAssignment.id) \
+        .filter(DBAssignment.semester_code == ACTIVE_SEMESTER) \
+        .group_by(DBAttachment.user_id).all()
+    sem_map = {row.user_id: row.likes for row in sem_attachments}
 
-    semester_map = {row.user_id: row.likes for row in semester_likes}
+    sem_summaries = db.query(DBSummary.uploader_id, func.count(DBSummaryLike.id).label("likes")) \
+        .join(DBSummaryLike, DBSummary.id == DBSummaryLike.summary_id) \
+        .filter(DBSummary.semester_code == ACTIVE_SEMESTER) \
+        .group_by(DBSummary.uploader_id).all()
+    sem_sum_map = {row.uploader_id: row.likes for row in sem_summaries}
 
-    # 2. Dynamically count active semester likes (Summaries -> Semester)
-    summary_likes_query = db.query(
-        DBSummary.uploader_id,
-        func.count(DBSummaryLike.id).label("likes")
-    ).join(
-        DBSummaryLike, DBSummary.id == DBSummaryLike.summary_id
-    ).filter(
-        DBSummary.semester_code == ACTIVE_SEMESTER                   # New Filter!
-    ).group_by(DBSummary.uploader_id).all()
+    # --- LIFETIME LIKES (Unfiltered - counts EVERYTHING) ---
+    life_attachments = db.query(DBAttachment.user_id, func.count(DBAttachmentLike.id).label("likes")) \
+        .join(DBAttachmentLike, DBAttachment.id == DBAttachmentLike.attachment_id) \
+        .group_by(DBAttachment.user_id).all()
+    life_map = {row.user_id: row.likes for row in life_attachments}
 
-    summary_map = {row.uploader_id: row.likes for row in summary_likes_query}
+    life_summaries = db.query(DBSummary.uploader_id, func.count(DBSummaryLike.id).label("likes")) \
+        .join(DBSummaryLike, DBSummary.id == DBSummaryLike.summary_id) \
+        .group_by(DBSummary.uploader_id).all()
+    life_sum_map = {row.uploader_id: row.likes for row in life_summaries}
 
-    # Build both lists simultaneously
+    # --- BUILD BOARDS ---
     semester_board = []
     all_time_board = []
 
     for u in users:
-        # Merge both maps for the total active semester score
-        sem_score = semester_map.get(u.id, 0) + summary_map.get(u.id, 0)
-        
-        # Lifetime score safely adds the historical stats + the active rolling score
-        lifetime_score = sem_score + stats_map.get(u.id, 0)
+        sem_score = sem_map.get(u.id, 0) + sem_sum_map.get(u.id, 0)
+        # Lifetime is the true historical count + any manual vault points
+        lifetime_score = life_map.get(u.id, 0) + life_sum_map.get(u.id, 0) + stats_map.get(u.id, 0)
 
-        base_user = {
-            "id": u.id,
-            "name": u.name.split(' ')[0] if u.name else "Unknown",
-            "picture": u.picture
-        }
-
+        base_user = {"id": u.id, "name": u.name.split(' ')[0] if u.name else "Unknown", "picture": u.picture}
         semester_board.append({**base_user, "score": sem_score})
         all_time_board.append({**base_user, "score": lifetime_score})
 
-    # Sort descending
     semester_board.sort(key=lambda x: x["score"], reverse=True)
     all_time_board.sort(key=lambda x: x["score"], reverse=True)
 
-    # Helper function to find user's rank and top 3
     def process_board(board):
-        my_rank = None
-        my_entry = None
+        my_rank, my_entry = None, None
         for index, entry in enumerate(board):
             if entry["id"] == current_user["id"]:
-                my_rank = index + 1
-                my_entry = entry
+                my_rank, my_entry = index + 1, entry
                 break
-
         if not my_entry:
             my_entry = {"id": current_user["id"], "name": "Me", "picture": "", "score": 0}
             my_rank = len(board) + 1
+        return {"top_3": [x for x in board[:3] if x["score"] > 0], "me": {"rank": my_rank, "entry": my_entry}}
 
-        top_3 = [x for x in board[:3] if x["score"] > 0]
-        return {"top_3": top_3, "me": {"rank": my_rank, "entry": my_entry}}
-
-    # Return the dual payload
-    return {
-        "semester": process_board(semester_board),
-        "all_time": process_board(all_time_board)
-    }
+    return {"semester": process_board(semester_board), "all_time": process_board(all_time_board)}
 
 @app.post("/api/v2/users/me/progress/update")
 def update_degree_progress(req: ProgressUpdateReq, db: Session = Depends(get_db),
@@ -2037,11 +2006,32 @@ def advance_semester(payload: AdvanceSemesterPayload,
                      admin: DBUser = Depends(get_admin_user), 
                      db: Session = Depends(get_db)):
     
-    # 1. Identify the oldest semester (position 2)
+    # Identify the oldest semester (position 2)
     oldest_sem = db.query(DBSemester).filter(DBSemester.position == 2).first()
     
     if oldest_sem:
-        # A. Purge attachments from S3/MinIO & DB for assignments in oldest semester
+        users = db.query(DBUser).all()
+        for user in users:
+            # Count valid likes from the oldest semester
+            old_semester_likes = db.query(DBAttachmentLike).join(
+                    DBAttachment, DBAttachmentLike.attachment_id == DBAttachment.id
+                ).join(
+                    DBAssignment, DBAttachment.assignment_id == DBAssignment.id
+                ).filter(
+                    DBAttachment.user_id == user.id,
+                    DBAssignment.semester_code == oldest_sem.code
+                ).count()
+    
+            if old_semester_likes > 0:
+                stat = db.query(DBUserStat).filter(DBUserStat.user_id == user.id).first()
+                if not stat:
+                    stat = DBUserStat(user_id=user.id, lifetime_likes=0)
+                    db.add(stat)
+    
+                # Lock the active score into the permanent vault
+                stat.lifetime_likes += old_semester_likes
+        db.flush()
+        # Purge attachments from S3/MinIO & DB for assignments in oldest semester
         old_assignments = db.query(DBAssignment).filter(DBAssignment.semester_code == oldest_sem.code).all()
         for ass in old_assignments:
             for att in ass.attachments:
@@ -2052,11 +2042,11 @@ def advance_semester(payload: AdvanceSemesterPayload,
                 db.delete(att)
             db.delete(ass)
 
-        # C. Delete oldest semester entry
+        # Delete oldest semester entry
         db.delete(oldest_sem)
         db.flush()
 
-    # 2. Shift position 1 -> position 2, and position 0 -> position 1
+    # Shift position 1 -> position 2, and position 0 -> position 1
     prev_sem = db.query(DBSemester).filter(DBSemester.position == 1).first()
     if prev_sem:
         prev_sem.position = 2
@@ -2066,7 +2056,7 @@ def advance_semester(payload: AdvanceSemesterPayload,
         curr_sem.position = 1
         curr_sem.is_active = False
 
-    # 3. Create new current semester (position 0)
+    # Create new current semester (position 0)
     new_sem = DBSemester(
         code=payload.new_semester_code,
         name=payload.new_semester_name,
