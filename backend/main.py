@@ -271,7 +271,7 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
     
     # Extract the last two digits of the year (e.g., "2027_WINTER" -> "2027" -> "27")
     semester_year = active_semester_code.split('_')[0]
-    year_suffix = semester_year[-2:] if len(semester_year) == 4 else ""
+    year_suffix = int(semester_year[-2:] if len(semester_year) == 4 else "27") - 1  # Default to 27 if parsing fails
     
     # Validate the Moodle URL prefix
     if year_suffix:
