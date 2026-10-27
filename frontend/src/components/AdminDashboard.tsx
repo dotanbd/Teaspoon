@@ -876,7 +876,7 @@ const AdminDashboard = ({
                   <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">עונה</label>
                   <select
                     value={advancePayload.term}
-                    onChange={e => setAdvancePayload(prev => ({ ...prev, term: e.target.value, new_semester_code: `${advancePayload.year}_${parseInt(e.target.value)}` }))}
+                    onChange={e => setAdvancePayload(prev => ({ ...prev, term: e.target.value, new_semester_code: `${advancePayload.year}_${e.target.value}` }))}
                     className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-rose-500 text-slate-800 dark:text-slate-100"
                   >
                     <option value="WINTER">חורף (WINTER)</option>

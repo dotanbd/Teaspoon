@@ -267,10 +267,30 @@ def file_stream(response):
 # Moodle import helper functions
 def process_moodle_link(ics_url: str, user_id: int, db: Session):
     """Core logic to fetch, parse, and upsert Moodle assignments."""
+    active_semester_code = get_active_semester_code(db)
+    
+    # Extract the last two digits of the year (e.g., "2027_WINTER" -> "2027" -> "27")
+    semester_year = active_semester_code.split('_')[0]
+    year_suffix = semester_year[-2:] if len(semester_year) == 4 else ""
+    
+    # Validate the Moodle URL prefix
+    if year_suffix:
+        expected_prefix = f"https://moodle{year_suffix}"
+        if not ics_url.startswith(expected_prefix):
+            # Remove the link from the database
+            # Note: Update 'DBUser' and 'moodle_url' to match your actual SQLAlchemy models
+            user = db.query(DBUser).filter(DBUser.id == user_id).first()
+            if user:
+                user.moodle_ics_url = ""
+                db.commit()
+            print(f"DEBUG: Invalid Moodle link removed. Expected {expected_prefix}, got {ics_url}")
+            return 0
+
     response = requests.get(ics_url, timeout=15)
     response.raise_for_status()
     cal = Calendar.from_ical(response.content)
     sync_count = 0
+    
     hidden_records = db.query(DBHiddenMoodleUID.moodle_uid).all()
     blacklisted_uids = {record[0] for record in hidden_records} # Fast lookup set
 
@@ -405,14 +425,13 @@ def process_moodle_link(ics_url: str, user_id: int, db: Session):
                     type="Assignment",
                     user_id=user_id,
                     moodle_uid=moodle_uid,
-                    semester_code=get_active_semester_code(db)
+                    semester_code=active_semester_code
                 )
                 db.add(new_assignment)
                 sync_count += 1
 
     db.commit()
     return sync_count
-
 
 def run_nightly_moodle_sync():
     print("Starting Smart Nightly Moodle Sync...")

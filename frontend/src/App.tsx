@@ -1690,7 +1690,7 @@ export default function App() {
                   if (courseData) {
                     const hasWwKeep = courseData.ww_keep !== null && courseData.ww_keep !== undefined;
                     const hasHwKeep = courseData.hw_keep !== null && courseData.hw_keep !== undefined;
-                    const hasLabKeep = courseData.lab_report_keep !== null && courseData.lab_report_keep !== undefined; //TODO: Handle lab_keep
+                    const hasLabKeep = courseData.lab_report_keep !== null && courseData.lab_report_keep !== undefined;
 
                     // If the course has explicit "keep" values defined
                     if (hasWwKeep || hasHwKeep || hasLabKeep) {
@@ -2142,10 +2142,19 @@ export default function App() {
                   type="url"
                   value={moodleUrl}
                   onChange={(e) => setMoodleUrl(e.target.value)}
-                  placeholder="https://moodle25.technion.ac.il/calendar/export_execute.php?..."
-                  className="w-full text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-3 text-left focus:ring-2 focus:ring-orange-500 outline-none transition-all dark:text-white font-mono"
+                  placeholder="https://moodle26.technion.ac.il/calendar/export_execute.php?..."
+                  className={`w-full text-sm bg-slate-50 dark:bg-slate-900 border rounded-lg px-4 py-3 text-left focus:ring-2 outline-none transition-all dark:text-white font-mono ${moodleUrl && !/^https:\/\/moodle26/.test(moodleUrl)
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-slate-300 dark:border-slate-600 focus:ring-orange-500'
+                    }`}
                   dir="ltr"
                 />
+                {/* הודעת שגיאה אם הקישור לא תקין */}
+                {moodleUrl && !/^https:\/\/moodle26/.test(moodleUrl) && (
+                  <p className="text-xs text-red-500 dark:text-red-400 font-bold">
+                    יש להעתיק קישור של השנה הנוכחית - חייב להתחיל ב - https://moodle26
+                  </p>
+                )}
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   <span className="font-bold">איך משיגים את הקישור?</span> היכנסו למודל &gt; לחצו על 'צפיה בלוח אירועים...' בסרגל הצד &gt; מצאו בתחתית הדף את הקישור 'ניהול לוחות־שנה (חיצוניים)' &gt; ייצוא לוח שנה &gt; סמנו 'כל האירועים' ו־'60 הימים...' &gt; "קבלת כתובת URL" והעתיקו לכאן.
                 </p>
@@ -2166,8 +2175,9 @@ export default function App() {
               </button>
               <button
                 onClick={handleMoodleSync}
-                disabled={isSyncingMoodle || !moodleUrl}
-                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 dark:disabled:bg-orange-900/50 text-white px-4 py-2.5 rounded-lg font-bold transition-all shadow-sm"
+                // כאן מתבצעת הבדיקה האם לאפשר לחיצה על כפתור הסנכרון
+                disabled={isSyncingMoodle || !moodleUrl || !/^https:\/\/moodle26/.test(moodleUrl)}
+                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 dark:disabled:bg-orange-900/50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-bold transition-all shadow-sm"
               >
                 {isSyncingMoodle ? <><RefreshCw className="w-5 h-5 animate-spin" /> מסנכרן...</> : <><Download className="w-5 h-5" /> הפעל סנכרון כעת</>}
               </button>
