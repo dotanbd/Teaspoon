@@ -843,7 +843,7 @@ export default function App() {
     const formData = new FormData();
     formData.append("file", file);
 
-    setIsProgressUpdating(true); // Re-using your existing loading state!
+    setIsProgressUpdating(true);
 
     try {
       const res = await fetch(`${API_BASE_URL}/users/me/grades/import`, {
@@ -1400,10 +1400,9 @@ export default function App() {
           </button>
           <button
             onClick={() => setCurrentView('about')}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${currentView === 'about' ? 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/30' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'} rounded-lg`}
+            className={`flex-1 flex justify-center items-center gap-1.5 py-2 text-sm font-bold rounded-lg transition-all ${currentView === 'about' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
           >
-            <Info className="w-5 h-5" />
-            <span className="hidden sm:inline">אודות</span>
+            <Info className="w-4 h-4" /> אודות
           </button>
 
           {/* Admin Mobile Tab */}
