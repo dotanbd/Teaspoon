@@ -989,16 +989,23 @@ def delete_assignment(assignment_id: int, current_user: dict = Depends(get_write
 
 
 @app.post("/api/v2/assignments/{assignment_id}/toggle")
-def toggle_assignment_completion(assignment_id: int, current_user: dict = Depends(get_current_user),
-                                 db: Session = Depends(get_db)):
-    entry = db.query(DBUserAssignment).filter_by(user_id=current_user["id"], assignment_id=assignment_id).first()
-    if not entry:
-        entry = DBUserAssignment(user_id=current_user["id"], assignment_id=assignment_id, is_completed=True)
-        db.add(entry)
+def toggle_assignment(assignment_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Query the new grading model instead of the old association table
+    existing_link = db.query(DBUserAssignment).filter(
+        DBUserAssignment.user_id == current_user['id'],
+        DBUserAssignment.assignment_id == assignment_id
+    ).first()
+
+    if existing_link:
+        # If it exists, they are un-checking the assignment
+        db.delete(existing_link)
     else:
-        entry.is_completed = not entry.is_completed
+        # If it doesn't exist, they are checking it off
+        new_link = DBUserAssignment(user_id=current_user['id'], assignment_id=assignment_id)
+        db.add(new_link)
+        
     db.commit()
-    return {"success": True}
+    return {"status": "success"}
 
 
 @app.post("/api/v2/assignments/{assignment_id}/grade")

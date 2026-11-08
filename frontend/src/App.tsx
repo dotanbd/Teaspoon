@@ -791,15 +791,30 @@ export default function App() {
   };
 
   const toggleCompletion = async (id: number) => {
-    // Find the specific assignment to check its current status
     const assignment = assignments.find(a => a.id === id);
     if (assignment && !assignment.is_completed) {
       triggerCelebration(id);
     }
+
+    // Optimistic UI update
     setAssignments(prev => prev.map(a => a.id === id ? { ...a, is_completed: !a.is_completed } : a));
 
     if (token) {
-      fetch(`${API_BASE_URL}/assignments/${id}/toggle`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+      try {
+        // Added await to ensure the request completes
+        const res = await fetch(`${API_BASE_URL}/assignments/${id}/toggle`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        // If the backend throws a 500 or 404, log it so it doesn't fail silently
+        if (!res.ok) {
+          console.error("Failed to save completion state to the database");
+          // Optional: You could revert the setAssignments state here if it fails
+        }
+      } catch (error) {
+        console.error("Network error while saving assignment:", error);
+      }
     } else {
       const localCompletions = JSON.parse(localStorage.getItem('guest_completions') || '[]');
       const updated = localCompletions.includes(id)
