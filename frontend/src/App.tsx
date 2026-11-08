@@ -853,14 +853,14 @@ export default function App() {
       });
 
       if (res.ok) {
-        alert("גיליון הציונים יובא בהצלחה! (Transcript imported successfully)");
+        alert("גיליון הציונים יובא בהצלחה!");
         fetchGrades(); // Instantly refresh the ledger
       } else {
-        alert("שגיאה בייבוא הקובץ (Error importing file)");
+        alert("שגיאה בייבוא הקובץ");
       }
     } catch (error) {
       console.error(error);
-      alert("שגיאת תקשורת (Network error)");
+      alert("שגיאת תקשורת");
     } finally {
       setIsProgressUpdating(false);
       // Reset the input so the user can upload the same file again if needed

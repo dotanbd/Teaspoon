@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
-import PyPDF2
+import pdfplumber
 
 from models import (
     Base,
@@ -1103,87 +1103,81 @@ async def import_transcript(
     db: Session = Depends(get_db)
 ):
     content = await file.read()
-    pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
     imported_count = 0
     
-    for page in pdf_reader.pages:
-        text = page.extract_text()
-        if not text:
-            continue
-            
-        for line in text.split('\n'):
-            # Clean up spacing to ensure clean tokenization
-            line = re.sub(r'\s+', ' ', line).strip()
-            
-            # Look for an 8-digit code (e.g., 00440102)
-            match = re.search(r'(0\d{7})', line)
-            if not match:
-                continue
-            
-            raw_code = match.group(1)
-            # Drop the leading '0' to match Teaspoon's 7-digit format (e.g., 0440102)
-            course_code = raw_code[1:] 
-            
-            tokens = line.split(' ')
-            
-            # Collect tokens after the course code until we hit the semester (e.g., "2025-2026")
-            name_tokens = []
-            for token in tokens[1:]:
-                # Stop collecting if we hit a semester year marker
-                if re.match(r'^20\d{2}-20\d{2}$', token): 
-                    break
-                name_tokens.append(token)
-                
-            extracted_name = " ".join(name_tokens).strip()
-            if not extracted_name:
-                extracted_name = f"קורס {course_code}"
-
-            try:
-                # The very last token is always the credit amount (e.g., 5.5 or 0)
-                credits = float(tokens[-1])
-                score = None
-                is_pass_fail = False
-                
-                # Check for textual pass/fail grades (e.g., "פטור ללא ניקוד")
-                if any(keyword in line for keyword in ["פטור", "עובר", "השלים", "Pass", "Exempt"]):
-                    is_pass_fail = True
-                else:
-                    # If graded, the score is the second to last token
-                    score = float(tokens[-2])
-                    
-                # Upsert logic: Update if the grade exists, create if it doesn't
-                existing = db.query(DBUserGrade).filter(
-                    DBUserGrade.user_id == current_user["id"],
-                    DBUserGrade.course_code == course_code
-                ).first()
-                
-                if existing:
-                    existing.score = score
-                    existing.credits = credits
-                    existing.is_pass_fail = is_pass_fail
-                else:
-                    # Check DB first, fallback to our newly extracted PDF name!
-                    course = db.query(DBCourse).filter(DBCourse.code == course_code).first()
-                    course_name = course.name if course else extracted_name
-                    
-                    new_grade = DBUserGrade(
-                        user_id=current_user["id"],
-                        course_code=course_code,
-                        course_name=course_name,
-                        credits=credits,
-                        score=score,
-                        is_pass_fail=is_pass_fail
-                    )
-                    db.add(new_grade)
-                    
-                imported_count += 1
-            except Exception as e:
-                # Silently skip lines that look like courses but fail math parsing
-                print(f"Transcript parse skip: {line} -> {e}")
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for page in pdf.pages:
+            # layout=True forces it to read left-to-right exactly as it appears on screen
+            text = page.extract_text(layout=True)
+            if not text:
                 continue
                 
+            for line in text.split('\n'):
+                line = line.strip()
+                
+                # 1. Match the 8-digit code
+                match = re.search(r'(0\d{7})', line)
+                if not match:
+                    continue
+                
+                raw_code = match.group(1)
+                course_code = raw_code[1:] # Drop the leading '0'
+                
+                # 2. Split by large gaps of whitespace (2 or more spaces)
+                # This perfectly isolates the Name, Semester, Grade, and Credits into an array
+                columns = re.split(r'\s{2,}', line)
+                
+                try:
+                    # 3. Clean Course Name (Column 0, minus the code itself)
+                    extracted_name = columns[0].replace(raw_code, '').strip()
+                    if not extracted_name:
+                        extracted_name = f"קורס {course_code}"
+                        
+                    # 4. Credits (Always the absolute last column)
+                    credits = float(columns[-1])
+                    
+                    # 5. Score / Pass-Fail (Always the second to last column)
+                    raw_score = columns[-2]
+                    score = None
+                    is_pass_fail = False
+                    
+                    if any(keyword in raw_score for keyword in ["פטור", "עובר", "השלים", "Pass", "Exempt"]):
+                        is_pass_fail = True
+                    else:
+                        score = float(raw_score)
+                        
+                    # Upsert logic: Update if the grade exists, create if it doesn't
+                    existing = db.query(DBUserGrade).filter(
+                        DBUserGrade.user_id == current_user["id"],
+                        DBUserGrade.course_code == course_code
+                    ).first()
+                    
+                    if existing:
+                        existing.score = score
+                        existing.credits = credits
+                        existing.is_pass_fail = is_pass_fail
+                    else:
+                        course = db.query(DBCourse).filter(DBCourse.code == course_code).first()
+                        course_name = course.name if course else extracted_name
+                        
+                        new_grade = DBUserGrade(
+                            user_id=current_user["id"],
+                            course_code=course_code,
+                            course_name=course_name,
+                            credits=credits,
+                            score=score,
+                            is_pass_fail=is_pass_fail
+                        )
+                        db.add(new_grade)
+                        
+                    imported_count += 1
+                except Exception as e:
+                    print(f"Transcript parse skip: {line} -> {e}")
+                    continue
+                    
     db.commit()
     return {"message": "Success", "imported": imported_count}
+
 
 # --- Calendar Routes ---
 @app.get("/api/v2/calendar/feed")
