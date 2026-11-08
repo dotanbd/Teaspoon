@@ -38,7 +38,7 @@ const DynamicChangelogIcon = ({ name, className }: { name: string, className?: s
 
 // --- TypeScript Interfaces ---
 interface Attachment { id: number; filename: string; url: string; uploader_id: number; category: string; likes?: number; isLikedByMe?: boolean; }
-interface Assignment { id: number; title: string; course_code: string; type: string; deadline: string; recommended_deadline?: string | null; isCompleted: boolean; grade: number | null; attachments: Attachment[]; semester_code: string; }
+interface Assignment { id: number; title: string; course_code: string; type: string; deadline: string; recommended_deadline?: string | null; is_completed: boolean; grade: number | null; attachments: Attachment[]; semester_code: string; }
 interface Semester {
   code: string;
   name: string;
@@ -650,7 +650,7 @@ export default function App() {
         const localCompletions = JSON.parse(localStorage.getItem('guest_completions') || '[]');
         const localGrades = JSON.parse(localStorage.getItem('guest_grades') || '{}');
         setMyCourses(localCourses); setVisibleCourses([]);
-        fetchedAssignments = fetchedAssignments.map(a => ({ ...a, isCompleted: localCompletions.includes(a.id), grade: localGrades[a.id] ?? null }));
+        fetchedAssignments = fetchedAssignments.map(a => ({ ...a, is_completed: localCompletions.includes(a.id), grade: localGrades[a.id] ?? null }));
       }
       setAssignments(fetchedAssignments.map(a => ({
         ...a,
@@ -793,10 +793,10 @@ export default function App() {
   const toggleCompletion = async (id: number) => {
     // Find the specific assignment to check its current status
     const assignment = assignments.find(a => a.id === id);
-    if (assignment && !assignment.isCompleted) {
+    if (assignment && !assignment.is_completed) {
       triggerCelebration(id);
     }
-    setAssignments(prev => prev.map(a => a.id === id ? { ...a, isCompleted: !a.isCompleted } : a));
+    setAssignments(prev => prev.map(a => a.id === id ? { ...a, is_completed: !a.is_completed } : a));
 
     if (token) {
       fetch(`${API_BASE_URL}/assignments/${id}/toggle`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
@@ -1119,7 +1119,7 @@ export default function App() {
     const activeCourses = visibleCourses.length > 0 ? visibleCourses : myCourses;
     if (!activeCourses.includes(a.course_code)) return false;
     if (activeTypeFilter !== 'All' && a.type !== activeTypeFilter) return false;
-    if (hideCompleted && a.isCompleted) return false;
+    if (hideCompleted && a.is_completed) return false;
 
     if (dateRange.start || dateRange.end) {
       const assignmentDate = new Date(a.deadline).getTime();
@@ -1682,7 +1682,7 @@ export default function App() {
                   const courseAssignments = assignments.filter(a => a.course_code === code && a.semester_code === selectedSemesterCode);
 
                   let courseRequired = courseAssignments.length;
-                  let courseCompleted = courseAssignments.filter(a => a.isCompleted).length;
+                  let courseCompleted = courseAssignments.filter(a => a.is_completed).length;
 
                   // 2. Fetch specific course data from map
                   const courseData = typeof coursesMap !== 'undefined' ? coursesMap[code] : null;
@@ -1908,20 +1908,20 @@ export default function App() {
                           const isList = viewMode === 'list';
 
                           return (
-                            <div key={assignment.id} className={`relative bg-white dark:bg-slate-800 rounded-[2rem] p-4 sm:p-5 flex flex-col ${isList ? 'sm:flex-row sm:items-center' : 'h-full justify-between'} gap-4 sm:gap-6 border border-slate-200/40 dark:border-slate-700 shadow-[0_4px_20px_rgb(0,0,0,0.03)] transition-all duration-200 group hover:z-50 focus-within:z-50 ${assignment.isCompleted ? 'opacity-50 grayscale-[0.2] hover:opacity-100 hover:grayscale-0' : ''} ${celebratingId === assignment.id ? 'animate-dopamine-pop z-50' : ''}`}>
+                            <div key={assignment.id} className={`relative bg-white dark:bg-slate-800 rounded-[2rem] p-4 sm:p-5 flex flex-col ${isList ? 'sm:flex-row sm:items-center' : 'h-full justify-between'} gap-4 sm:gap-6 border border-slate-200/40 dark:border-slate-700 shadow-[0_4px_20px_rgb(0,0,0,0.03)] transition-all duration-200 group hover:z-50 focus-within:z-50 ${assignment.is_completed ? 'opacity-50 grayscale-[0.2] hover:opacity-100 hover:grayscale-0' : ''} ${celebratingId === assignment.id ? 'animate-dopamine-pop z-50' : ''}`}>
                               {/* Colored Right Border indicator */}
                               <div className={`absolute right-0 top-6 bottom-6 w-1.5 rounded-s-md ${courseTheme.dot}`}></div>
 
                               <div className={`flex items-start ${isList ? 'items-center sm:w-auto w-full' : ''} gap-4 flex-1 min-w-0`}>
                                 {/* Checkbox */}
-                                <button onClick={() => toggleCompletion(assignment.id)} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 ml-2 transition-colors ${assignment.isCompleted ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'border-slate-200 dark:border-slate-600 hover:border-slate-300'}`}>
-                                  {assignment.isCompleted && <Check className="w-4 h-4 text-emerald-500" />}
+                                <button onClick={() => toggleCompletion(assignment.id)} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 ml-2 transition-colors ${assignment.is_completed ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'border-slate-200 dark:border-slate-600 hover:border-slate-300'}`}>
+                                  {assignment.is_completed && <Check className="w-4 h-4 text-emerald-500" />}
                                 </button>
 
                                 {/* Main Info */}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-1.5">
-                                    <h3 className={`text-lg font-black truncate ${assignment.isCompleted ? 'line-through text-slate-500' : 'text-[#1a202c] dark:text-white'}`}>{assignment.title}</h3>
+                                    <h3 className={`text-lg font-black truncate ${assignment.is_completed ? 'line-through text-slate-500' : 'text-[#1a202c] dark:text-white'}`}>{assignment.title}</h3>
                                     <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-md bg-[#FAF9F6] dark:bg-slate-900 text-slate-500 border border-slate-100 dark:border-slate-700 shadow-inner shrink-0">
                                       {assignment.type === 'Assignment' ? 'גיליון' : assignment.type === 'Webwork' ? 'וובוורק' : assignment.type === 'Exam' ? 'מבחן' : assignment.type === 'lab_report' ? 'דוח מעבדה' : 'אחר'}
                                     </span>
@@ -1931,7 +1931,7 @@ export default function App() {
                                     <span>{coursesMap[assignment.course_code]?.name} <span dir="ltr" className="opacity-60">({assignment.course_code})</span></span>
                                     <span className="hidden sm:inline opacity-30">•</span>
                                     <span className={`flex items-center gap-1.5 ${(() => {
-                                      if (assignment.isCompleted) return '';
+                                      if (assignment.is_completed) return '';
                                       const hoursUntilDeadline = (new Date(assignment.deadline).getTime() - Date.now()) / (1000 * 60 * 60);
                                       if (hoursUntilDeadline <= 24) return 'text-rose-500';
                                       if (hoursUntilDeadline <= 72) return 'text-amber-600';
