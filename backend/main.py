@@ -817,6 +817,7 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
             "id": a.id,
             "title": a.title,
             "course_code": a.course_code,
+            "semester_code": a.semester_code,
             "type": a.type,
             "deadline": a.deadline,
             "recommended_deadline": getattr(a, 'recommended_deadline', None),
