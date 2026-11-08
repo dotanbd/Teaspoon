@@ -769,9 +769,9 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
         )
         conditions.append(user_permission_block)
 
-        # Fetch personal completed/grade data
+        # FIX 1: If the row exists in the ledger, it is inherently completed
         entries = db.query(DBUserAssignment).filter(DBUserAssignment.user_id == current_user_id).all()
-        user_data = {e.assignment_id: {"completed": e.is_completed, "grade": e.grade} for e in entries}
+        user_data = {e.assignment_id: {"completed": True, "grade": getattr(e, 'grade', None)} for e in entries}
 
     else:
         # Guests ONLY see public courses
@@ -820,12 +820,12 @@ def get_assignments(semester_code: Optional[str] = None, optional_user: dict = D
             "type": a.type,
             "deadline": a.deadline,
             "recommended_deadline": getattr(a, 'recommended_deadline', None),
-            "isCompleted": user_data.get(a.id, {}).get("completed", False),
+            "is_completed": user_data.get(a.id, {}).get("completed", False),
             "grade": user_data.get(a.id, {}).get("grade", None),
             "attachments": attachments
         })
+        
     return results
-
 
 @app.post("/api/v2/assignments")
 def create_assignment(assignment: AssignmentCreate, current_user: dict = Depends(get_write_user),
