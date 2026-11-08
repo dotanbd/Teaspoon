@@ -10,7 +10,7 @@ import {
   Heart, ShieldAlert, ListChecks,
   Trophy, LayoutGrid, List, Download, UploadCloud, Loader2,
   Star, Zap, Wrench, Sparkles, ChevronUp,
-  Info
+  Info, Upload
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -836,6 +836,38 @@ export default function App() {
     }
   };
 
+  const handleTranscriptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setIsProgressUpdating(true); // Re-using your existing loading state!
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/me/grades/import`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        alert("גיליון הציונים יובא בהצלחה! (Transcript imported successfully)");
+        fetchGrades(); // Instantly refresh the ledger
+      } else {
+        alert("שגיאה בייבוא הקובץ (Error importing file)");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("שגיאת תקשורת (Network error)");
+    } finally {
+      setIsProgressUpdating(false);
+      // Reset the input so the user can upload the same file again if needed
+      e.target.value = '';
+    }
+  };
+
   const openAddModal = () => {
     setIsEditing(false);
     setCurrentEditId(null);
@@ -1613,7 +1645,9 @@ export default function App() {
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                   <span className="text-sm text-slate-700 dark:text-slate-300">
-                    צליל השלמת מטלה נוצר על ידי: <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">freesound_community</a> פורסם באתר <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">Pixabay</a>
+                    צליל השלמת מטלה נוצר על ידי: <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">
+                      freesound_community</a><br />
+                    פורסם באתר: <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">Pixabay</a>
                   </span>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
@@ -2765,9 +2799,23 @@ export default function App() {
                     </button>
                   )}
 
-                  <h3 className="font-bold text-slate-800 dark:text-white text-sm">
-                    {editingGradeId ? 'ערוך ציון' : 'הוסף ציון חדש'}
-                  </h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800 dark:text-white text-sm">
+                      {editingGradeId ? 'ערוך ציון' : 'הוסף ציון חדש'}
+                    </h3>
+
+                    <label className={`cursor-pointer text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${isProgressUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <Upload className="w-3.5 h-3.5" />
+                      ייבוא אוטומטי (PDF)
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={handleTranscriptUpload}
+                        disabled={isProgressUpdating}
+                      />
+                    </label>
+                  </div>
 
                   <div className="flex gap-2">
                     <input
