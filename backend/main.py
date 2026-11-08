@@ -1107,46 +1107,68 @@ async def import_transcript(
     
     with pdfplumber.open(io.BytesIO(content)) as pdf:
         for page in pdf.pages:
-            # layout=True forces it to read left-to-right exactly as it appears on screen
+            # layout=True extracts visually left-to-right
             text = page.extract_text(layout=True)
             if not text:
                 continue
                 
             for line in text.split('\n'):
-                line = line.strip()
-                
-                # 1. Match the 8-digit code
-                match = re.search(r'(0\d{7})', line)
-                if not match:
+                # 1. Find 8-9 digit course code (e.g. 00440102) anywhere in the line
+                code_match = re.search(r'\b(0\d{7}|10\d{7})\b', line)
+                if not code_match:
                     continue
-                
-                raw_code = match.group(1)
-                course_code = raw_code[1:] # Drop the leading '0'
-                
-                # 2. Split by large gaps of whitespace (2 or more spaces)
-                # This perfectly isolates the Name, Semester, Grade, and Credits into an array
-                columns = re.split(r'\s{2,}', line)
+                    
+                raw_code = code_match.group(1)
+                # Convert to standard Teaspoon 6-7 digit format by stripping leading zeros
+                course_code = raw_code.lstrip('0')
                 
                 try:
-                    # 3. Clean Course Name (Column 0, minus the code itself)
-                    extracted_name = columns[0].replace(raw_code, '').strip()
+                    # 2. Remove code and semester text so they don't interfere with number parsing
+                    clean_line = line.replace(raw_code, '')
+                    sem_match = re.search(r'(20\d{2}-20\d{2}[ \w"\'א-ת]+)', clean_line)
+                    if sem_match:
+                        clean_line = clean_line.replace(sem_match.group(1), '')
+                        
+                    # 3. Pluck all standalone numbers (ignores numbers glued inside words like 1ת')
+                    numbers = re.findall(r'(?<!\S)\d+(?:\.\d+)?(?!\S)', clean_line)
+                    
+                    score = None
+                    credits = 0.0
+                    is_pass_fail = False
+                    
+                    pass_fail_keywords = ["פטור", "עובר", "השלים", "Pass", "Exempt"]
+                    if any(kw in clean_line for kw in pass_fail_keywords):
+                        is_pass_fail = True
+                        if numbers:
+                            credits = float(numbers[0])
+                    else:
+                        if len(numbers) >= 2:
+                            # Because visual reading puts Credits far-left and Grade left-center,
+                            # we know numbers[0] is Credits and numbers[1] is the Grade.
+                            # We can also double-verify since Technion grades are whole numbers!
+                            n1, n2 = float(numbers[0]), float(numbers[1])
+                            if n1 % 1 != 0 or n2 % 1 != 0:
+                                credits = n1 if n1 % 1 != 0 else n2
+                                score = n2 if n1 % 1 != 0 else n1
+                            else:
+                                credits = n1
+                                score = n2
+                        elif len(numbers) == 1:
+                            credits = float(numbers[0])
+
+                    # 4. Erase the numbers and keywords to reveal the pure Course Name
+                    name_str = clean_line
+                    for num in numbers:
+                        # Only replace exact standalone number matches
+                        name_str = re.sub(r'(?<!\S)' + re.escape(num) + r'(?!\S)', '', name_str, count=1)
+                    for kw in pass_fail_keywords + ["ציון", "ניקוד"]:
+                        name_str = name_str.replace(kw, '')
+                        
+                    extracted_name = re.sub(r'\s+', ' ', name_str).strip()
                     if not extracted_name:
                         extracted_name = f"קורס {course_code}"
                         
-                    # 4. Credits (Always the absolute last column)
-                    credits = float(columns[-1])
-                    
-                    # 5. Score / Pass-Fail (Always the second to last column)
-                    raw_score = columns[-2]
-                    score = None
-                    is_pass_fail = False
-                    
-                    if any(keyword in raw_score for keyword in ["פטור", "עובר", "השלים", "Pass", "Exempt"]):
-                        is_pass_fail = True
-                    else:
-                        score = float(raw_score)
-                        
-                    # Upsert logic: Update if the grade exists, create if it doesn't
+                    # 5. Save to Database
                     existing = db.query(DBUserGrade).filter(
                         DBUserGrade.user_id == current_user["id"],
                         DBUserGrade.course_code == course_code
@@ -1157,13 +1179,14 @@ async def import_transcript(
                         existing.credits = credits
                         existing.is_pass_fail = is_pass_fail
                     else:
+                        # Check catalog for official name, fallback to PDF extracted name
                         course = db.query(DBCourse).filter(DBCourse.code == course_code).first()
-                        course_name = course.name if course else extracted_name
+                        final_name = course.name if course else extracted_name
                         
                         new_grade = DBUserGrade(
                             user_id=current_user["id"],
                             course_code=course_code,
-                            course_name=course_name,
+                            course_name=final_name,
                             credits=credits,
                             score=score,
                             is_pass_fail=is_pass_fail
@@ -1172,7 +1195,7 @@ async def import_transcript(
                         
                     imported_count += 1
                 except Exception as e:
-                    print(f"Transcript parse skip: {line} -> {e}")
+                    print(f"Semantic parse skip: {line} -> {e}")
                     continue
                     
     db.commit()
