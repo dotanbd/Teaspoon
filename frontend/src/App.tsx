@@ -1608,18 +1608,18 @@ export default function App() {
 
             {/* Open Source Credits */}
             <div className="border-t border-slate-200 dark:border-slate-700 pt-8">
-              <h4 className="font-bold text-slate-800 dark:text-white text-lg mb-5 text-center">Credits</h4>
+              <h4 className="font-bold text-slate-800 dark:text-white text-lg mb-5 text-center">קרדיטים</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                   <span className="text-sm text-slate-700 dark:text-slate-300">
-                    Sound Effect by <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">freesound_community</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">Pixabay</a>
+                    צליל השלמת מטלה נוצר על ידי: <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">freesound_community</a> פורסם באתר <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=6313" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">Pixabay</a>
                   </span>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                   <span className="text-sm text-slate-700 dark:text-slate-300">
-                    Icons from <a href="https://lucide.dev/" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">lucide</a>
+                    אייקונים לקוחים מתוך: <a href="https://lucide.dev/" className="text-rose-600 dark:text-rose-400 hover:underline font-medium" target="_blank" rel="noopener noreferrer">lucide</a>
                   </span>
                 </div>
               </div>
