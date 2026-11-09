@@ -2796,18 +2796,6 @@ export default function App() {
                     <h3 className="font-bold text-slate-800 dark:text-white text-sm">
                       {editingGradeId ? 'ערוך ציון' : 'הוסף ציון חדש'}
                     </h3>
-
-                    <label className={`cursor-pointer text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${isProgressUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <Upload className="w-3.5 h-3.5" />
-                      ייבוא אוטומטי (PDF)
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        className="hidden"
-                        onChange={handleTranscriptUpload}
-                        disabled={isProgressUpdating}
-                      />
-                    </label>
                   </div>
 
                   <div className="flex gap-2">
@@ -2848,22 +2836,46 @@ export default function App() {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
-                    <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer mt-1">
-                      <input type="checkbox" checked={gradeForm.is_pass_fail} onChange={e => setGradeForm({ ...gradeForm, is_pass_fail: e.target.checked, score: '' })} className="w-4 h-4 rounded text-blue-500 focus:ring-blue-500" />
-                      ציון בינארי (עבר/נכשל)
-                    </label>
-                    {/* Cancel Edit Button */}
-                    {editingGradeId && (
-                      <button type="button" onClick={() => { setEditingGradeId(null); setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false }); }} className="absolute top-5 left-0 text-xs font-bold text-slate-400 hover:text-slate-800 dark:hover:text-white">
-                        בטל עריכה
-                      </button>
-                    )}
-                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 select-none cursor-pointer mt-1">
+                    <input type="checkbox" checked={gradeForm.is_pass_fail} onChange={e => setGradeForm({ ...gradeForm, is_pass_fail: e.target.checked, score: '' })} className="w-4 h-4 rounded text-blue-500 focus:ring-blue-500" />
+                    ציון בינארי (עבר/נכשל)
+                  </label>
 
-                  <button disabled={isProgressUpdating} type="submit" className={`w-full py-3 text-white font-bold rounded-xl transition-all duration-200 mt-2 ${editingGradeId ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/25 shadow-lg' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25 shadow-lg'}`}>
-                    {isProgressUpdating ? 'מעדכן...' : (editingGradeId ? 'שמור שינויים' : 'הוסף לגיליון')}
-                  </button>
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+
+                    {/* Bottom Right: Auto-Import PDF (First item in RTL is pushed right) */}
+                    <div className="flex items-center gap-3">
+                      <label className={`cursor-pointer text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${isProgressUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <Upload className="w-3.5 h-3.5" />
+                        ייבוא אוטומטי (PDF)
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          className="hidden"
+                          onChange={handleTranscriptUpload}
+                          disabled={isProgressUpdating}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Bottom Left: Cancel and Save (Last item in RTL is pushed left) */}
+                    <div className="flex items-center gap-3">
+                      {editingGradeId && (
+                        <button
+                          type="button"
+                          onClick={() => { setEditingGradeId(null); setGradeForm({ course_code: '', course_name: '', credits: '', score: '', is_pass_fail: false }); }}
+                          className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                        >
+                          בטל עריכה
+                        </button>
+                      )}
+
+                      <button disabled={isProgressUpdating} type="submit" className={`px-6 py-2.5 text-white text-sm font-bold rounded-xl transition-all duration-200 ${editingGradeId ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/25 shadow-lg' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25 shadow-lg'}`}>
+                        {isProgressUpdating ? 'מעדכן...' : (editingGradeId ? 'שמור שינויים' : 'הוסף לגיליון')}
+                      </button>
+                    </div>
+
+                  </div>
                 </form>
 
               </div>
